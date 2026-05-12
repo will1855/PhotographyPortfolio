@@ -88,8 +88,7 @@ async function getInjectedHtml(filename, siteConfig) {
 // Serve injected pages
 app.get('/', async (req, res) => {
   try {
-    const configRes = await fetch(`${req.protocol}://${req.get('host')}/api/site-config`);
-    const config = await configRes.json();
+    const config = await getSiteConfigData();
     const html = await getInjectedHtml('index.html', config);
     res.send(html);
   } catch (err) {
@@ -99,8 +98,7 @@ app.get('/', async (req, res) => {
 
 app.get('/about', async (req, res) => {
   try {
-    const configRes = await fetch(`${req.protocol}://${req.get('host')}/api/site-config`);
-    const config = await configRes.json();
+    const config = await getSiteConfigData();
     const html = await getInjectedHtml('about.html', config);
     res.send(html);
   } catch (err) {
@@ -230,88 +228,89 @@ const loginLimiter = rateLimit({
  * GET /api/site-config
  * Returns: site settings, ordered visible sections, hero data for each section.
  */
-app.get('/api/site-config', async (req, res) => {
-  try {
-    // Fetch site settings
-    const { data: settings, error: settingsErr } = await supabase
-      .from('site_settings')
-      .select('*')
-      .eq('id', 1)
-      .single();
+/** Internal helper to fetch site config data without an HTTP request. */
+async function getSiteConfigData() {
+  // Fetch site settings
+  const { data: settings, error: settingsErr } = await supabase
+    .from('site_settings')
+    .select('*')
+    .eq('id', 1)
+    .single();
 
-    if (settingsErr && settingsErr.code !== 'PGRST116') throw settingsErr;
+  if (settingsErr && settingsErr.code !== 'PGRST116') throw settingsErr;
 
-    // Fetch all visible sections ordered
-    const { data: sections, error: sectionsErr } = await supabase
-      .from('portfolio_sections')
-      .select('*')
-      .eq('is_visible', true)
-      .order('sort_order', { ascending: true });
+  // Fetch all visible sections ordered
+  const { data: sections, error: sectionsErr } = await supabase
+    .from('portfolio_sections')
+    .select('*')
+    .eq('is_visible', true)
+    .order('sort_order', { ascending: true });
 
-    if (sectionsErr) throw sectionsErr;
+  if (sectionsErr) throw sectionsErr;
 
-    // For each section with a hero, fetch hero image row
-    const formattedSections = await Promise.all((sections || []).map(async (section) => {
-      let heroes = [];
-        // Fetch all hero images for this section
-        const { data: heroLinks } = await supabase
-          .from('section_hero_images')
-          .select('image_id')
-          .eq('section_id', section.id);
+  // For each section with a hero, fetch hero image row
+  const formattedSections = await Promise.all((sections || []).map(async (section) => {
+    let heroes = [];
+    const { data: heroLinks } = await supabase
+      .from('section_hero_images')
+      .select('image_id')
+      .eq('section_id', section.id);
 
-        if (heroLinks && heroLinks.length > 0) {
-          const heroIds = heroLinks.map(h => h.image_id);
-          const { data: heroRows } = await supabase
-            .from('portfolio_images')
-            .select('*')
-            .in('id', heroIds);
-
-          if (heroRows) {
-            heroes = heroRows.map(row => ({
-              id:        row.id,
-              full_url:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
-              thumb_url: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
-            }));
-          }
-        }
-      return {
-        id:           section.id,
-        slug:         section.slug,
-        label:        section.label,
-        nav_label:    section.nav_label || section.label,
-        hero_kicker:  section.hero_kicker,
-        hero_link_text: section.hero_link_text,
-        sort_order:   section.sort_order,
-        heroes,
-      };
-    }));
-
-    // About profile image
-    let aboutProfileUrl = null;
-    if (settings?.about_profile_storage_path) {
-      aboutProfileUrl = getPublicUrl(SUPABASE_IMAGES_BUCKET, settings.about_profile_storage_path);
-    } else if (settings?.about_profile_image_id) {
-      const { data: profileRow } = await supabase
+    if (heroLinks && heroLinks.length > 0) {
+      const heroIds = heroLinks.map(h => h.image_id);
+      const { data: heroRows } = await supabase
         .from('portfolio_images')
-        .select('storage_path_full, storage_path_thumb')
-        .eq('id', settings.about_profile_image_id)
-        .single();
-      if (profileRow) {
-        aboutProfileUrl = getPublicUrl(SUPABASE_IMAGES_BUCKET, profileRow.storage_path_full);
+        .select('*')
+        .in('id', heroIds);
+
+      if (heroRows) {
+        heroes = heroRows.map(row => ({
+          id:        row.id,
+          full_url:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
+          thumb_url: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
+        }));
       }
     }
+    return {
+      id:           section.id,
+      slug:         section.slug,
+      label:        section.label,
+      nav_label:    section.nav_label || section.label,
+      hero_kicker:  section.hero_kicker,
+      hero_link_text: section.hero_link_text,
+      sort_order:   section.sort_order,
+      heroes,
+    };
+  }));
 
-    res.json({
-      site_title:    settings?.site_title  || 'Will Davies',
-      about_title:   settings?.about_title || 'About',
-      about_text:    settings?.about_text  || null,
-      about_profile_url: aboutProfileUrl,
-      about_profile_storage_path: settings?.about_profile_storage_path || null,
-      about_profile_image_id: settings?.about_profile_image_id || null,
-      contact_email: settings?.contact_email || null,
-      instagram_url: settings?.instagram_url || null,
-      sections:      formattedSections,
-    });
+  // About profile image
+  let aboutProfileUrl = null;
+  if (settings?.about_profile_storage_path) {
+    aboutProfileUrl = getPublicUrl(SUPABASE_IMAGES_BUCKET, settings.about_profile_storage_path);
+  } else if (settings?.about_profile_image_id) {
+    const { data: profileRow } = await supabase
+      .from('portfolio_images')
+      .select('storage_path_full, storage_path_thumb')
+      .eq('id', settings.about_profile_image_id)
+      .single();
+    if (profileRow) {
+      aboutProfileUrl = getPublicUrl(SUPABASE_IMAGES_BUCKET, profileRow.storage_path_full);
+    }
+  }
+
+  return {
+    site_title:   settings?.site_title  || 'Will Davies',
+    about_title:  settings?.about_title || 'About',
+    about_text:   settings?.about_text  || '',
+    about_profile_url: aboutProfileUrl,
+    sections:     formattedSections,
+  };
+}
+
+app.get('/api/site-config', async (req, res) => {
+  try {
+    const data = await getSiteConfigData();
+    res.json(data);
   } catch (err) {
     console.error('[/api/site-config]', err.message);
     res.status(500).json({ error: 'Failed to load site config' });
