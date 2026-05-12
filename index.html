@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Photography portfolio — archive and studies.">
+  <meta name="robots" content="index, follow">
+  <title>Will Davies</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="stylesheet" href="style.css">
+  <meta name="view-transition" content="same-origin">
+</head>
+<body class="preload">
+
+<header id="site-header">
+  <h1 id="site-title"><a href="/" style="color:inherit;text-decoration:none;">Will Davies</a></h1>
+  <nav id="site-nav">
+    <!-- Populated by script.js from /api/site-config -->
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-media" id="hero-media">
+    <!-- Slides will be added here by script.js -->
+  </div>
+  <div class="hero-overlay">
+    <p class="hero-kicker" id="hero-kicker"></p>
+    <a href="#gallery" class="hero-link" id="hero-link"></a>
+  </div>
+</section>
+
+<main class="reveal" style="animation-delay: 400ms;">
+  <div class="gallery" id="gallery"></div>
+</main>
+
+<footer class="reveal" style="animation-delay: 800ms;">
+  <div class="footer-content">
+    <p class="footer-text">&copy; 2026 Will Davies. All rights reserved.</p>
+  </div>
+</footer>
+
+<div id="lightbox" class="hidden">
+  <button class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>
+  <img id="lightbox-img" alt="">
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

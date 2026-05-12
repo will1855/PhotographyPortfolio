@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="About — photography portfolio.">
+  <title>About — Will Davies</title>
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="stylesheet" href="style.css">
+  <meta name="view-transition" content="same-origin">
+</head>
+<body class="preload">
+
+<header id="site-header">
+  <h1 id="site-title"><a href="/" style="color:inherit;text-decoration:none;">Will Davies</a></h1>
+  <nav id="site-nav"></nav>
+</header>
+
+<div class="about-page">
+  <div class="about-content" id="about-content">
+    <!-- Populated by about.js -->
+  </div>
+
+  <footer class="reveal" style="animation-delay: 650ms;">
+    <div class="footer-content">
+      <p class="footer-text">&copy; 2026 Will Davies. All rights reserved.</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+'use strict';
+window.addEventListener('load', () => document.body.classList.remove('preload'));
+
+const header   = document.getElementById('site-header');
+const siteNav  = document.getElementById('site-nav');
+const siteTitle = document.getElementById('site-title');
+const content  = document.getElementById('about-content');
+
+let lastScrollY = window.scrollY;
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  header.classList.toggle('scrolled', y > 40);
+  if (y < 80) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
+  header.classList.toggle('hidden-header', y > lastScrollY);
+  lastScrollY = y;
+});
+
+async function loadAbout() {
+  try {
+    const res    = await fetch('/api/site-config');
+    const config = await res.json();
+
+    // Update title
+    const title = config.site_title || 'Will Davies';
+    document.title = `${config.about_title || 'About'} — ${title}`;
+    siteTitle.querySelector('a').textContent = title;
+
+    // Build nav
+    const sections = config.sections || [];
+    siteNav.innerHTML = '';
+    for (const s of sections) {
+      const a = document.createElement('a');
+      a.href = `/?section=${encodeURIComponent(s.slug)}`;
+      a.textContent = s.nav_label || s.label;
+      siteNav.appendChild(a);
+    }
+    const aboutA = document.createElement('a');
+    aboutA.href = '/about';
+    aboutA.textContent = config.about_title || 'About';
+    aboutA.classList.add('active');
+    siteNav.appendChild(aboutA);
+
+    // Render about content
+    let html = '';
+
+    if (config.about_profile_url) {
+      html += `<img class="about-profile-img reveal" src="${config.about_profile_url}" alt="${title}" style="animation-delay: 150ms;">`;
+    }
+
+    html += `<h2 class="about-name reveal" style="animation-delay: 250ms;">${config.about_title || 'About'}</h2>`;
+
+    if (config.about_text) {
+      html += `<p class="about-text reveal" style="animation-delay: 350ms;">${escapeHtml(config.about_text)}</p>`;
+    } else {
+      html += `<p class="about-text reveal" style="animation-delay: 350ms;color:rgba(243,243,240,0.35)">About content coming soon.</p>`;
+    }
+
+    const links = [];
+    if (config.contact_email)  links.push(`<a href="mailto:${escapeHtml(config.contact_email)}">${escapeHtml(config.contact_email)}</a>`);
+    if (config.instagram_url)  links.push(`<a href="${escapeHtml(config.instagram_url)}" target="_blank" rel="noopener">Instagram ↗</a>`);
+    if (links.length > 0) {
+      html += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
+    }
+
+    html += `
+      <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms;">
+        <h3 style="font-size:1.2rem;margin-bottom:24px;font-weight:500;">Send a message</h3>
+        <div class="field">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" required placeholder="Your name">
+        </div>
+        <div class="field">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" required placeholder="hello@example.com">
+        </div>
+        <div class="field">
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="5" required placeholder="How can I help?"></textarea>
+        </div>
+        <button type="submit" class="btn-submit" id="submit-btn">Send Message</button>
+        <div id="form-status"></div>
+      </form>
+    `;
+
+    content.innerHTML = html;
+
+    // Attach form listener
+    const form = document.getElementById('contact-form');
+    const status = document.getElementById('form-status');
+    const btn = document.getElementById('submit-btn');
+
+    form?.addEventListener('submit', async e => {
+      e.preventDefault();
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      status.className = '';
+      status.textContent = '';
+
+      const formData = {
+        name: form.name.value,
+        email: form.email.value,
+        message: form.message.value,
+      };
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        });
+
+        if (res.ok) {
+          status.textContent = 'Message sent successfully. Thank you!';
+          status.className = 'success';
+          form.reset();
+        } else {
+          status.textContent = 'Failed to send message. Please try again.';
+          status.className = 'error';
+        }
+      } catch (err) {
+        status.textContent = 'Connection error. Please try again.';
+        status.className = 'error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Message';
+      }
+    });
+  } catch (err) {
+    console.error('[about]', err);
+    content.innerHTML = '<p style="color:rgba(243,243,240,0.4);padding-top:20px;">Could not load about page.</p>';
+  }
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+loadAbout();
+</script>
+</body>
+</html>

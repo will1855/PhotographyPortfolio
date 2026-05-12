@@ -1,0 +1,26 @@
+{
+  "name": "photographyportfolio",
+  "version": "2.0.0",
+  "description": "Photography portfolio template with Supabase storage and hidden admin mode",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "migrate": "node scripts/migrate-local-images.js",
+    "regenerate-thumbs": "node scripts/regenerate-thumbs.js"
+  },
+  "keywords": [],
+  "author": "Will Davies",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.5.0",
+    "express": "^5.2.1",
+    "express-rate-limit": "^7.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^2.1.1",
+    "sharp": "^0.34.5"
+  }
+}

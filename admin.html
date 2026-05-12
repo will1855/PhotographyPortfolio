@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Portfolio</title>
+  <meta name="robots" content="noindex, nofollow">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <link rel="apple-touch-icon" href="/logo.png">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     LOGIN PAGE
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-card">
+    <h1>Portfolio Admin</h1>
+    <p>Enter your password to access the dashboard.</p>
+
+    <form id="login-form" autocomplete="off">
+      <div class="field">
+        <label for="admin-password">Password</label>
+        <input
+          type="password"
+          id="admin-password"
+          name="password"
+          autocomplete="current-password"
+          autofocus
+          required
+        >
+      </div>
+      <div id="login-error" class="text-error mt-sm" style="display:none; font-size:0.85rem; margin-bottom:12px;"></div>
+      <button type="submit" class="btn btn-primary btn-full mt-sm" id="login-btn">
+        Sign in
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     ADMIN DASHBOARD
+═══════════════════════════════════════════════════════════════════════════ -->
+<div id="admin-page">
+
+  <!-- Header -->
+  <header class="admin-header">
+    <div class="admin-header-left">
+      <a href="/" class="admin-logo" id="admin-site-title">Portfolio</a>
+      <span class="admin-badge">Admin</span>
+    </div>
+    <div class="row">
+      <a href="/" target="_blank" class="btn btn-secondary btn-sm">View site ↗</a>
+      <button class="btn btn-secondary btn-sm" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+
+  <!-- Body -->
+  <div class="admin-body">
+
+    <!-- Sidebar -->
+    <nav class="admin-sidebar" id="admin-sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-label">Content</div>
+        <button class="sidebar-link active" data-panel="images">Images</button>
+        <button class="sidebar-link" data-panel="hero">Hero</button>
+        <button class="sidebar-link" data-panel="about">About</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-label">Site</div>
+        <button class="sidebar-link" data-panel="settings">Settings</button>
+        <button class="sidebar-link" data-panel="sections">Sections</button>
+      </div>
+    </nav>
+
+    <!-- Main content -->
+    <main class="admin-main">
+
+      <!-- ── Images panel ──────────────────────────────────────────────── -->
+      <section class="panel active" id="panel-images">
+        <h2 class="panel-title">Images</h2>
+        <p class="panel-desc">Upload images and drag to set the display order. Changes save automatically on drop.</p>
+
+        <!-- Section tabs (populated dynamically) -->
+        <div class="section-tabs" id="image-tabs"></div>
+
+        <!-- Upload zone -->
+        <div class="upload-zone" id="upload-zone">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--muted);margin:0 auto"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <p><strong>Drop images here</strong> or click to browse</p>
+          <p>JPG, PNG, WebP · Max 20 MB each · Up to 10 at once</p>
+          <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" multiple style="display:none">
+        </div>
+
+        <div class="upload-progress" id="upload-progress">
+          <div class="spinner"></div>
+          <span id="upload-progress-text">Uploading…</span>
+        </div>
+
+        <!-- Image grid (populated per section) -->
+        <div class="image-grid" id="image-grid"></div>
+
+        <div class="row mt-sm">
+          <button class="btn btn-secondary btn-sm" id="save-order-btn" style="display:none">
+            Save order
+          </button>
+        </div>
+      </section>
+
+      <!-- ── Hero panel ────────────────────────────────────────────────── -->
+      <section class="panel" id="panel-hero">
+        <h2 class="panel-title">Hero Image</h2>
+        <p class="panel-desc">Choose the hero image and edit the overlay text for each section.</p>
+
+        <div id="hero-sections-container">
+          <!-- Populated dynamically per section -->
+        </div>
+      </section>
+
+      <!-- ── About panel ───────────────────────────────────────────────── -->
+      <section class="panel" id="panel-about">
+        <h2 class="panel-title">About Page</h2>
+        <p class="panel-desc">Edit your About page content and choose a profile image.</p>
+
+        <div class="field">
+          <label for="about-title-input">Page title</label>
+          <input type="text" id="about-title-input" placeholder="About">
+        </div>
+
+        <div class="field mt-sm">
+          <label for="about-text-input">About text</label>
+          <textarea id="about-text-input" rows="6" placeholder="Write something about yourself…"></textarea>
+        </div>
+
+        <div class="field mt-sm">
+          <label for="contact-email-input">Contact email</label>
+          <input type="email" id="contact-email-input" placeholder="hello@example.com">
+        </div>
+
+        <div class="field mt-sm">
+          <label for="instagram-url-input">Instagram URL</label>
+          <input type="url" id="instagram-url-input" placeholder="https://instagram.com/username">
+        </div>
+
+        <hr class="divider">
+
+        <p class="text-muted" style="margin-bottom:14px;">
+          Profile image — upload a dedicated photo for your About page.
+        </p>
+        
+        <div class="row" style="margin-bottom:20px;">
+          <button class="btn btn-secondary btn-sm" id="upload-profile-btn">
+            Upload profile photo
+          </button>
+          <input type="file" id="profile-file-input" accept="image/jpeg,image/png,image/webp" style="display:none">
+        </div>
+
+        <div id="about-profile-preview" style="display:none; margin-bottom:14px;">
+          <div class="current-hero-preview">
+            <img id="about-profile-img" src="" alt="Profile">
+            <span id="about-profile-label">Current profile image</span>
+            <button class="btn btn-danger btn-sm" id="remove-profile-btn">Remove</button>
+          </div>
+        </div>
+
+        <div class="row mt-md">
+          <button class="btn btn-primary" id="save-about-btn">Save About</button>
+        </div>
+      </section>
+
+      <!-- ── Settings panel ────────────────────────────────────────────── -->
+      <section class="panel" id="panel-settings">
+        <h2 class="panel-title">Site Settings</h2>
+        <p class="panel-desc">Edit your site title, contact details, and social links.</p>
+
+        <div class="settings-grid">
+          <div class="field">
+            <label for="site-title-input">Site title</label>
+            <input type="text" id="site-title-input" placeholder="Will Davies">
+          </div>
+          <div class="field">
+            <!-- spacer -->
+          </div>
+          <div class="field">
+            <label for="settings-contact-email">Contact email</label>
+            <input type="email" id="settings-contact-email" placeholder="hello@example.com">
+          </div>
+          <div class="field">
+            <label for="settings-instagram">Instagram URL</label>
+            <input type="url" id="settings-instagram" placeholder="https://instagram.com/username">
+          </div>
+        </div>
+
+        <div class="row mt-md">
+          <button class="btn btn-primary" id="save-settings-btn">Save Settings</button>
+        </div>
+      </section>
+
+      <!-- ── Sections panel ────────────────────────────────────────────── -->
+      <section class="panel" id="panel-sections">
+        <h2 class="panel-title">Sections</h2>
+        <p class="panel-desc">Rename sections or change their navigation labels and visibility.</p>
+
+        <div id="sections-list">
+          <!-- Populated dynamically -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- SortableJS from CDN — drag-and-drop ordering -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
