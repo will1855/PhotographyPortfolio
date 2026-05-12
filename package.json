@@ -13,14 +13,17 @@
   "author": "Will Davies",
   "license": "ISC",
   "type": "commonjs",
+  "engines": {
+    "node": "20.x"
+  },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.4",
-    "cookie-parser": "^1.4.7",
-    "dotenv": "^16.5.0",
-    "express": "^5.2.1",
-    "express-rate-limit": "^7.5.0",
+    "@supabase/supabase-js": "^2.43.1",
+    "cookie-parser": "^1.4.6",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.2.0",
     "jsonwebtoken": "^9.0.2",
-    "multer": "^2.1.1",
-    "sharp": "^0.34.5"
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.3"
   }
 }
