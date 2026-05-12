@@ -56,6 +56,21 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Debug: Log files available in the current directory on startup
+console.log('[startup] Current directory:', __dirname);
+try {
+  const files = fs.readdirSync(__dirname);
+  console.log('[startup] Files found:', files.join(', '));
+} catch (err) {
+  console.error('[startup] Failed to read directory:', err.message);
+}
+
+// Serve static public files - MOVE TO TOP
+app.use(express.static(path.join(__dirname), { index: false }));
+// Legacy: serve local images/thumbs if they still exist (migration fallback)
+app.use('/images', express.static(path.join(__dirname, 'images')));
+app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs')));
+
 // =============================================================================
 // SEO & Template Injection
 // =============================================================================
@@ -105,12 +120,6 @@ app.get('/about', async (req, res) => {
     res.sendFile(path.join(__dirname, 'about.html'));
   }
 });
-
-// Serve static public files
-app.use(express.static(path.join(__dirname), { index: false }));
-// Legacy: serve local images/thumbs if they still exist (migration fallback)
-app.use('/images', express.static(path.join(__dirname, 'images')));
-app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs')));
 
 // =============================================================================
 // Helpers
