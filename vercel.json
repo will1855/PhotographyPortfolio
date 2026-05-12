@@ -1,15 +1,16 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "server.js",
-      "use": "@vercel/node"
+  "functions": {
+    "server.js": {
+      "runtime": "vercel-node@latest",
+      "memory": 1024
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/server.js"
-    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/server.js" },
+    { "source": "/about", "destination": "/server.js" },
+    { "source": "/api/(.*)", "destination": "/server.js" },
+    { "source": "/admin(.*)", "destination": "/server.js" },
+    { "source": "/login(.*)", "destination": "/server.js" }
   ]
 }
