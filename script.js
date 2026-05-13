@@ -68,32 +68,45 @@ function applyConfig(config) {
   // Site title
   const title = config.site_title || 'Will Davies';
   document.title = title;
-  siteTitle.querySelector('a').textContent = title;
+  if (siteTitle && siteTitle.querySelector('a')) {
+    siteTitle.querySelector('a').textContent = title;
+  }
 
   // Build nav from DB sections
   const sections = config.sections || [];
-  siteNav.innerHTML = '';
+  if (siteNav) siteNav.innerHTML = '';
+
+  const isAboutPage = window.location.pathname.includes('/about');
 
   for (const s of sections) {
     const a = document.createElement('a');
     a.href = `/?section=${encodeURIComponent(s.slug)}`;
     a.textContent = s.nav_label || s.label;
-    if (s.slug === section) a.classList.add('active');
-    siteNav.appendChild(a);
+    // Only highlight section if we are NOT on the about page
+    if (!isAboutPage && s.slug === section) {
+      a.classList.add('active');
+    }
+    if (siteNav) siteNav.appendChild(a);
   }
 
   // About link (always show if About page exists)
   const aboutLink = document.createElement('a');
   aboutLink.href = '/about';
   aboutLink.textContent = config.about_title || 'About';
-  if (window.location.pathname === '/about') aboutLink.classList.add('active');
-  siteNav.appendChild(aboutLink);
+  if (isAboutPage) {
+    aboutLink.classList.add('active');
+  }
+  if (siteNav) siteNav.appendChild(aboutLink);
 
   // Hero — find config for this section
   const sectionConfig = sections.find(s => s.slug === section);
-  if (sectionConfig) {
-    heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
-    heroLink.textContent   = sectionConfig.hero_link_text || 'View';
+  if (sectionConfig && !isAboutPage) {
+    if (heroKicker) {
+      heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
+    }
+    if (heroLink) {
+      heroLink.textContent   = sectionConfig.hero_link_text || 'View';
+    }
     
     if (sectionConfig.heroes && sectionConfig.heroes.length > 0) {
       initHeroSlideshow(sectionConfig.heroes);
@@ -137,12 +150,15 @@ function nextHeroSlide() {
 }
 
 function applyFallbackNav() {
+  const isAboutPage = window.location.pathname.includes('/about');
   // Show basic Archive / Studies links if API fails
-  siteNav.innerHTML = `
-    <a href="/?section=archive"${section === 'archive' ? ' class="active"' : ''}>Archive</a>
-    <a href="/?section=studies"${section === 'studies' ? ' class="active"' : ''}>Studies</a>
-    <a href="/about">About</a>
-  `;
+  if (siteNav) {
+    siteNav.innerHTML = `
+      <a href="/?section=archive"${!isAboutPage && section === 'archive' ? ' class="active"' : ''}>Archive</a>
+      <a href="/?section=studies"${!isAboutPage && section === 'studies' ? ' class="active"' : ''}>Studies</a>
+      <a href="/about"${isAboutPage ? ' class="active"' : ''}>About</a>
+    `;
+  }
 }
 
 // ─── Gallery rendering ─────────────────────────────────────────────────────────
