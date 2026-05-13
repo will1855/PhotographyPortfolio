@@ -155,8 +155,15 @@ function initHeroSlideshow(heroes) {
     if (heroObserver) heroObserver.disconnect();
     heroObserver = new IntersectionObserver((entries) => {
       // Pause slideshow if hero is even slightly out of view
-      heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.1;
-    }, { threshold: [0.1] });
+      heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.05;
+      
+      // Force hide the hero section to absolutely prevent any visual bleed
+      if (!heroIsVisible) {
+        heroSection.style.visibility = 'hidden';
+      } else {
+        heroSection.style.visibility = '';
+      }
+    }, { threshold: [0, 0.05] });
     heroObserver.observe(heroSection);
   }
 }
