@@ -1,19 +1,19 @@
 'use strict';
 // ─── DOM refs ──────────────────────────────────────────────────────────────────
-const gallery      = document.getElementById('gallery');
+let gallery        = document.getElementById('gallery');
 const lightbox     = document.getElementById('lightbox');
 const lightboxImg  = document.getElementById('lightbox-img');
 const lightboxClose = document.getElementById('lightbox-close');
-const heroMedia     = document.getElementById('hero-media');
-const heroKicker    = document.getElementById('hero-kicker');
-const heroLink      = document.getElementById('hero-link');
+let heroMedia      = document.getElementById('hero-media');
+let heroKicker     = document.getElementById('hero-kicker');
+let heroLink       = document.getElementById('hero-link');
 const header       = document.getElementById('site-header');
 const siteNav      = document.getElementById('site-nav');
 const siteTitle    = document.getElementById('site-title');
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const params  = new URLSearchParams(window.location.search);
-const section = params.get('section') || 'archive';
+let section   = params.get('section') || 'archive';
 let images    = [];   // array of image objects from API
 let currentIndex = 0;
 let startX    = 0;
@@ -25,29 +25,41 @@ let heroTimer = null;
 window.addEventListener('load', () => document.body.classList.remove('preload'));
 
 // ─── Bootstrap: load config then images ────────────────────────────────────────
-async function init() {
+let siteConfigCache = null;
+
+async function initPage() {
+  // Try to load or use cached config
   try {
-    const configRes = await fetch('/api/site-config');
-    const config    = await configRes.json();
-    applyConfig(config);
+    if (!siteConfigCache) {
+      const configRes = await fetch('/api/site-config');
+      siteConfigCache = await configRes.json();
+    }
+    applyConfig(siteConfigCache);
   } catch (err) {
     console.warn('[config] Failed to load site config, using defaults', err);
     applyFallbackNav();
   }
 
-  try {
-    const imgRes = await fetch(`/api/images?section=${encodeURIComponent(section)}`);
-    const data   = await imgRes.json();
-    if (Array.isArray(data) && data.length > 0) {
-      images = data;
-      // Images come pre-sorted by sort_order from the server — no client sort
-      renderGallery();
-    } else {
-      gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">No images yet.</p>';
+  const isAbout = window.location.pathname.includes('/about');
+
+  if (isAbout) {
+    if (siteConfigCache) loadAbout(siteConfigCache);
+  } else {
+    if (gallery) {
+      try {
+        const imgRes = await fetch(`/api/images?section=${encodeURIComponent(section)}`);
+        const data   = await imgRes.json();
+        if (Array.isArray(data) && data.length > 0) {
+          images = data;
+          renderGallery();
+        } else {
+          gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">No images yet.</p>';
+        }
+      } catch (err) {
+        console.error('[images] Failed to load images', err);
+        gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">Could not load images.</p>';
+      }
     }
-  } catch (err) {
-    console.error('[images] Failed to load images', err);
-    gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">Could not load images.</p>';
   }
 }
 
@@ -522,5 +534,172 @@ window.addEventListener('scroll', () => {
   lastScrollY = y;
 });
 
+function loadAbout(config) {
+  const content = document.getElementById('about-content');
+  if (!content) return;
+
+  // Update title
+  const title = config.site_title || 'Will Davies';
+  document.title = `${config.about_title || 'About'} — ${title}`;
+
+  let html = '';
+
+  if (config.about_profile_url) {
+    html += `<img class="about-profile-img reveal" src="${config.about_profile_url}" alt="${title}" style="animation-delay: 150ms;">`;
+  }
+
+  html += `<h2 class="about-name reveal" style="animation-delay: 250ms;">${config.about_title || 'About'}</h2>`;
+
+  if (config.about_text) {
+    html += `<p class="about-text reveal" style="animation-delay: 350ms;">${escapeHtml(config.about_text)}</p>`;
+  } else {
+    html += `<p class="about-text reveal" style="animation-delay: 350ms;color:rgba(243,243,240,0.35)">About content coming soon.</p>`;
+  }
+
+  const links = [];
+  if (config.contact_email)  links.push(`<a href="mailto:${escapeHtml(config.contact_email)}">${escapeHtml(config.contact_email)}</a>`);
+  if (config.instagram_url)  links.push(`<a href="${escapeHtml(config.instagram_url)}" target="_blank" rel="noopener">Instagram ↗</a>`);
+  if (links.length > 0) {
+    html += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
+  }
+
+  html += `
+    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms;">
+      <h3 style="font-size:1.2rem;margin-bottom:24px;font-weight:500;">Send a message</h3>
+      <div class="field">
+        <label for="name">Name</label>
+        <input type="text" id="name" name="name" required placeholder="Your name">
+      </div>
+      <div class="field">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" required placeholder="hello@example.com">
+      </div>
+      <div class="field">
+        <label for="message">Message</label>
+        <textarea id="message" name="message" rows="5" required placeholder="How can I help?"></textarea>
+      </div>
+      <button type="submit" class="btn-submit" id="submit-btn">Send Message</button>
+      <div id="form-status"></div>
+    </form>
+  `;
+
+  content.innerHTML = html;
+
+  // Attach form listener
+  const form = document.getElementById('contact-form');
+  const status = document.getElementById('form-status');
+  const btn = document.getElementById('submit-btn');
+
+  form?.addEventListener('submit', async e => {
+    e.preventDefault();
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
+    status.className = '';
+    status.textContent = '';
+
+    const formData = {
+      name: form.name.value,
+      email: form.email.value,
+      message: form.message.value,
+    };
+
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+
+      if (res.ok) {
+        status.textContent = 'Message sent successfully. Thank you!';
+        status.className = 'success';
+        form.reset();
+      } else {
+        status.textContent = 'Failed to send message. Please try again.';
+        status.className = 'error';
+      }
+    } catch (err) {
+      status.textContent = 'Connection error. Please try again.';
+      status.className = 'error';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Send Message';
+    }
+  });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// ─── SPA Router ────────────────────────────────────────────────────────────────
+document.addEventListener('click', async (e) => {
+  const a = e.target.closest('a');
+  if (!a) return;
+
+  // Only intercept same-origin, non-hash, non-target-_blank links
+  if (a.origin !== window.location.origin) return;
+  if (a.hash && a.pathname === window.location.pathname && a.search === window.location.search) return;
+  if (a.target === '_blank') return;
+  if (a.hasAttribute('download')) return;
+
+  // Intercept the click!
+  e.preventDefault();
+  const targetUrl = a.href;
+
+  window.history.pushState({}, '', targetUrl);
+  await handleRoute(targetUrl);
+});
+
+window.addEventListener('popstate', () => {
+  handleRoute(window.location.href);
+});
+
+async function handleRoute(url) {
+  try {
+    const res = await fetch(url);
+    const html = await res.text();
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+
+    const newContent = doc.getElementById('app-content');
+    if (!newContent) {
+      window.location.href = url; // Fallback to hard reload
+      return;
+    }
+
+    // Update section parameter from the new URL
+    const params = new URLSearchParams(new URL(url).search);
+    section = params.get('section') || 'archive';
+
+    const performUpdate = () => {
+      const appContent = document.getElementById('app-content');
+      appContent.innerHTML = newContent.innerHTML;
+      
+      // Update DOM refs inside app-content
+      gallery = document.getElementById('gallery');
+      heroMedia = document.getElementById('hero-media');
+      heroKicker = document.getElementById('hero-kicker');
+      heroLink = document.getElementById('hero-link');
+      
+      document.title = doc.title;
+      initPage();
+    };
+
+    if (document.startViewTransition) {
+      document.startViewTransition(performUpdate);
+    } else {
+      performUpdate();
+    }
+  } catch (err) {
+    console.error('Routing failed', err);
+    window.location.href = url;
+  }
+}
+
 // ─── Boot ─────────────────────────────────────────────────────────────────────
-init();
+initPage();

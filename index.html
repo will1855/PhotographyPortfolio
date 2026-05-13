@@ -9,7 +9,6 @@
   <link rel="icon" type="image/png" href="/logo.png">
   <link rel="apple-touch-icon" href="/logo.png">
   <link rel="stylesheet" href="style.css">
-  <meta name="view-transition" content="same-origin">
 </head>
 <body class="preload">
 
@@ -20,25 +19,27 @@
   </nav>
 </header>
 
-<section class="hero">
-  <div class="hero-media" id="hero-media">
-    <!-- Slides will be added here by script.js -->
-  </div>
-  <div class="hero-overlay">
-    <p class="hero-kicker" id="hero-kicker"></p>
-    <a href="#gallery" class="hero-link" id="hero-link"></a>
-  </div>
-</section>
+<div id="app-content">
+  <section class="hero">
+    <div class="hero-media" id="hero-media">
+      <!-- Slides will be added here by script.js -->
+    </div>
+    <div class="hero-overlay">
+      <p class="hero-kicker" id="hero-kicker"></p>
+      <a href="#gallery" class="hero-link" id="hero-link"></a>
+    </div>
+  </section>
 
-<main class="reveal" style="animation-delay: 400ms;">
-  <div class="gallery" id="gallery"></div>
-</main>
+  <main class="reveal" style="animation-delay: 400ms;">
+    <div class="gallery" id="gallery"></div>
+  </main>
 
-<footer class="reveal" style="animation-delay: 800ms;">
-  <div class="footer-content">
-    <p class="footer-text">&copy; 2026 Will Davies. All rights reserved.</p>
-  </div>
-</footer>
+  <footer class="reveal" style="animation-delay: 800ms;">
+    <div class="footer-content">
+      <p class="footer-text">&copy; 2026 Will Davies. All rights reserved.</p>
+    </div>
+  </footer>
+</div>
 
 <div id="lightbox" class="hidden">
   <button class="lightbox-close" id="lightbox-close" aria-label="Close">&times;</button>

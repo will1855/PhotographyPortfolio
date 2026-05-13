@@ -23,6 +23,10 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+#app-content {
+  view-transition-name: app-content;
+}
+
 .hero, main, .about-page, footer {
   opacity: 1;
   transition: opacity 500ms ease;
