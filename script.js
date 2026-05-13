@@ -126,6 +126,9 @@ function initHeroSlideshow(heroes) {
     const img = document.createElement('img');
     img.src = h.full_url;
     img.alt = 'Hero image';
+    if (h.focal_point && h.focal_point !== 'center') {
+      img.style.setProperty('--mobile-focal-point', h.focal_point);
+    }
     div.appendChild(img);
     heroMedia.appendChild(div);
     heroSlides.push(div);

@@ -144,6 +144,12 @@ nav a.active { color: var(--text); }
   filter: brightness(0.96);
 }
 
+@media (max-width: 768px) {
+  .hero-slide img {
+    object-position: var(--mobile-focal-point, center);
+  }
+}
+
 .hero::after {
   content: "";
   position: absolute;

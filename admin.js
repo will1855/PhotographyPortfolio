@@ -694,8 +694,19 @@ function renderHeroPanel() {
       </div>
       ${(sc.heroes || []).length > 0 ? `
         <div class="current-hero-preview">
-          <div style="display:flex;gap:4px;overflow-x:auto;padding-bottom:8px;">
-            ${sc.heroes.map(h => `<img src="${h.thumb_url || h.full_url}" style="width:50px;height:40px;border-radius:4px;">`).join('')}
+          <div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;">
+            ${sc.heroes.map(h => `
+              <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+                <img src="${h.thumb_url || h.full_url}" style="width:60px;height:40px;border-radius:4px; object-fit: cover;">
+                <select class="hero-focal-select" data-id="${h.id}" style="font-size:0.7rem; padding:1px; max-width:70px; border-radius:3px; background:var(--surface); color:var(--text); border:1px solid var(--border);">
+                  <option value="center" ${h.focal_point === 'center' ? 'selected' : ''}>Center</option>
+                  <option value="top" ${h.focal_point === 'top' ? 'selected' : ''}>Top</option>
+                  <option value="bottom" ${h.focal_point === 'bottom' ? 'selected' : ''}>Bottom</option>
+                  <option value="left" ${h.focal_point === 'left' ? 'selected' : ''}>Left</option>
+                  <option value="right" ${h.focal_point === 'right' ? 'selected' : ''}>Right</option>
+                </select>
+              </div>
+            `).join('')}
           </div>
           <span style="font-size:0.8rem;color:var(--muted);">${sc.heroes.length} images in slideshow</span>
           <button class="btn btn-danger btn-sm clear-hero-btn" data-slug="${section.slug}">Clear all</button>
@@ -721,7 +732,7 @@ function renderHeroPanel() {
   }
 
   // Hero picker click
-  container.addEventListener('click', e => {
+  container.onclick = e => {
     const card = e.target.closest('.hero-picker .image-card');
     if (card) {
       const picker = card.closest('.hero-picker');
@@ -748,7 +759,39 @@ function renderHeroPanel() {
 
     const saveBtn = e.target.closest('.save-hero-btn');
     if (saveBtn) saveHero(saveBtn.dataset.slug);
-  });
+  };
+
+  // Hero focal picker change
+  container.onchange = async e => {
+    const focalSelect = e.target.closest('.hero-focal-select');
+    if (focalSelect) {
+      const imgId = focalSelect.dataset.id;
+      const focalPoint = focalSelect.value;
+      focalSelect.disabled = true;
+      try {
+        const res = await fetch(`/api/admin/image/${imgId}/focal`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ focal_point: focalPoint }),
+        });
+        if (res.ok) {
+          toast('Mobile focal point updated');
+          // Refresh site config so the frontend gets it
+          const cfg = await fetch('/api/site-config');
+          siteConfig = await cfg.json();
+          // We don't necessarily need to re-render the whole panel just for this dropdown,
+          // but we can to ensure state is clean. The select will stay where they put it anyway.
+        } else {
+          toast('Failed to update focal point', 'error');
+        }
+      } catch {
+        toast('Connection error', 'error');
+      } finally {
+        focalSelect.disabled = false;
+      }
+    }
+  };
 }
 
 async function saveHero(slug) {

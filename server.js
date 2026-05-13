@@ -162,6 +162,7 @@ function formatImageRow(row) {
     sort_order:      row.sort_order,
     is_wide:         row.is_wide || false,
     is_filled:       row.is_filled || false,
+    focal_point:     row.focal_point || 'center',
     public_url_full:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
     public_url_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
     // Include paths for admin use
@@ -277,6 +278,7 @@ async function getSiteConfigData() {
           id:        row.id,
           full_url:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
           thumb_url: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
+          focal_point: row.focal_point || 'center',
         }));
       }
     }
@@ -762,6 +764,29 @@ app.patch('/api/admin/image/:id/fill', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[PATCH /api/admin/image/fill]', err.message);
     res.status(500).json({ error: 'Failed to update fill flag' });
+  }
+});
+
+/**
+ * PATCH /api/admin/image/:id/focal
+ * Body: { "focal_point": "top" }
+ * Updates the focal point of the image.
+ */
+app.patch('/api/admin/image/:id/focal', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { focal_point } = req.body;
+  try {
+    const { data: updated, error } = await supabase
+      .from('portfolio_images')
+      .update({ focal_point, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(formatImageRow(updated));
+  } catch (err) {
+    console.error('[PATCH /api/admin/image/focal]', err.message);
+    res.status(500).json({ error: 'Failed to update focal point' });
   }
 });
 
