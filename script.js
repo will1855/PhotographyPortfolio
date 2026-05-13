@@ -154,8 +154,9 @@ function initHeroSlideshow(heroes) {
   if (heroSection) {
     if (heroObserver) heroObserver.disconnect();
     heroObserver = new IntersectionObserver((entries) => {
-      heroIsVisible = entries[0].isIntersecting;
-    }, { threshold: 0 });
+      // Pause slideshow if hero is even slightly out of view
+      heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.1;
+    }, { threshold: [0.1] });
     heroObserver.observe(heroSection);
   }
 }
@@ -198,7 +199,9 @@ function getNumCols() {
  */
 function layoutGallery() {
   const numCols = getNumCols();
-  const colWidth = gallery.offsetWidth / numCols;
+  // Ensure we never have a 0 colWidth during transitions
+  const containerWidth = gallery.offsetWidth > 0 ? gallery.offsetWidth : window.innerWidth;
+  const colWidth = containerWidth / numCols;
   
   const logHeights = new Array(numCols).fill(0);
   const logGaps = []; 

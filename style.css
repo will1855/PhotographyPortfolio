@@ -194,7 +194,6 @@ nav a.active { color: var(--text); }
 /* ── Gallery ────────────────────────────────────────────────────────────────── */
 .gallery {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   grid-auto-rows: 10px;
   gap: 0;
   overflow: hidden; /* Contain sub-pixel overflows */
