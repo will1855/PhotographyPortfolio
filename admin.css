@@ -638,3 +638,90 @@ textarea { min-height: 100px; }
 @media (min-width: 701px) and (max-width: 1000px) {
   #image-grid { /* script.js handles this */ }
 }
+
+/* ─── Focal Modal ────────────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-content {
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 100%;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-content h3 {
+  font-size: 1.15rem;
+  margin-bottom: 4px;
+}
+
+.focal-preview-container {
+  position: relative;
+  width: 100%;
+  /* 9:16 aspect ratio to simulate tall mobile */
+  aspect-ratio: 9/16;
+  max-height: 55vh;
+  background: #000;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-mid);
+  overflow: hidden;
+  margin: 10px auto;
+  touch-action: none; /* prevent scrolling while panning */
+}
+
+#focal-preview-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  cursor: grab;
+}
+
+#focal-preview-img:active {
+  cursor: grabbing;
+}
+
+.focal-crosshair {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 30px;
+  height: 30px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.focal-crosshair::before,
+.focal-crosshair::after {
+  content: "";
+  position: absolute;
+  background: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.focal-crosshair::before {
+  top: 14px;
+  left: 0;
+  width: 30px;
+  height: 2px;
+}
+
+.focal-crosshair::after {
+  top: 0;
+  left: 14px;
+  width: 2px;
+  height: 30px;
+}

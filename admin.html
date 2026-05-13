@@ -211,6 +211,24 @@
   </div>
 </div>
 
+<!-- Focal Point Modal -->
+<div id="focal-modal" class="modal-overlay" style="display:none;">
+  <div class="modal-content">
+    <h3>Adjust Mobile Focus</h3>
+    <p class="text-muted" style="margin-bottom:12px; font-size:0.85rem;">Drag the image to set how it appears on tall mobile screens.</p>
+    
+    <div class="focal-preview-container">
+      <img id="focal-preview-img" src="" alt="Focal preview" draggable="false">
+      <div class="focal-crosshair"></div>
+    </div>
+
+    <div class="row mt-md" style="justify-content: flex-end; gap:8px;">
+      <button class="btn btn-secondary" id="focal-cancel-btn">Cancel</button>
+      <button class="btn btn-primary" id="focal-save-btn">Save Position</button>
+    </div>
+  </div>
+</div>
+
 <!-- Toast container -->
 <div id="toast-container"></div>
 

@@ -698,13 +698,7 @@ function renderHeroPanel() {
             ${sc.heroes.map(h => `
               <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
                 <img src="${h.thumb_url || h.full_url}" style="width:60px;height:40px;border-radius:4px; object-fit: cover;">
-                <select class="hero-focal-select" data-id="${h.id}" style="font-size:0.7rem; padding:1px; max-width:70px; border-radius:3px; background:var(--surface); color:var(--text); border:1px solid var(--border);">
-                  <option value="center" ${h.focal_point === 'center' ? 'selected' : ''}>Center</option>
-                  <option value="top" ${h.focal_point === 'top' ? 'selected' : ''}>Top</option>
-                  <option value="bottom" ${h.focal_point === 'bottom' ? 'selected' : ''}>Bottom</option>
-                  <option value="left" ${h.focal_point === 'left' ? 'selected' : ''}>Left</option>
-                  <option value="right" ${h.focal_point === 'right' ? 'selected' : ''}>Right</option>
-                </select>
+                <button class="btn btn-secondary btn-sm adjust-focal-btn" data-id="${h.id}" data-url="${h.thumb_url || h.full_url}" data-focal="${h.focal_point || '50% 50%'}">Focus</button>
               </div>
             `).join('')}
           </div>
@@ -733,6 +727,12 @@ function renderHeroPanel() {
 
   // Hero picker click
   container.onclick = e => {
+    const adjustBtn = e.target.closest('.adjust-focal-btn');
+    if (adjustBtn) {
+      openFocalModal(adjustBtn.dataset.id, adjustBtn.dataset.url, adjustBtn.dataset.focal);
+      return;
+    }
+
     const card = e.target.closest('.hero-picker .image-card');
     if (card) {
       const picker = card.closest('.hero-picker');
@@ -759,38 +759,6 @@ function renderHeroPanel() {
 
     const saveBtn = e.target.closest('.save-hero-btn');
     if (saveBtn) saveHero(saveBtn.dataset.slug);
-  };
-
-  // Hero focal picker change
-  container.onchange = async e => {
-    const focalSelect = e.target.closest('.hero-focal-select');
-    if (focalSelect) {
-      const imgId = focalSelect.dataset.id;
-      const focalPoint = focalSelect.value;
-      focalSelect.disabled = true;
-      try {
-        const res = await fetch(`/api/admin/image/${imgId}/focal`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ focal_point: focalPoint }),
-        });
-        if (res.ok) {
-          toast('Mobile focal point updated');
-          // Refresh site config so the frontend gets it
-          const cfg = await fetch('/api/site-config');
-          siteConfig = await cfg.json();
-          // We don't necessarily need to re-render the whole panel just for this dropdown,
-          // but we can to ensure state is clean. The select will stay where they put it anyway.
-        } else {
-          toast('Failed to update focal point', 'error');
-        }
-      } catch {
-        toast('Connection error', 'error');
-      } finally {
-        focalSelect.disabled = false;
-      }
-    }
   };
 }
 
@@ -1033,6 +1001,141 @@ function renderSectionsPanel() {
     }
   });
 }
+
+// ─── Focal Point Modal ────────────────────────────────────────────────────────
+const focalModal = document.getElementById('focal-modal');
+const focalPreviewImg = document.getElementById('focal-preview-img');
+const focalCancelBtn = document.getElementById('focal-cancel-btn');
+const focalSaveBtn = document.getElementById('focal-save-btn');
+
+let currentFocalId = null;
+let currentFocalX = 50;
+let currentFocalY = 50;
+let isDraggingFocal = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let dragStartObjX = 50;
+let dragStartObjY = 50;
+
+function parseFocalString(fp) {
+  if (!fp) return { x: 50, y: 50 };
+  const map = {
+    'top': { x: 50, y: 0 },
+    'bottom': { x: 50, y: 100 },
+    'left': { x: 0, y: 50 },
+    'right': { x: 100, y: 50 },
+    'center': { x: 50, y: 50 }
+  };
+  if (map[fp]) return map[fp];
+  
+  const parts = fp.split(' ');
+  const x = parts[0] ? parseFloat(parts[0]) : 50;
+  const y = parts[1] ? parseFloat(parts[1]) : 50;
+  return { x: isNaN(x) ? 50 : x, y: isNaN(y) ? 50 : y };
+}
+
+function openFocalModal(id, url, fpStr) {
+  currentFocalId = id;
+  focalPreviewImg.src = url;
+  
+  const { x, y } = parseFocalString(fpStr);
+  currentFocalX = x;
+  currentFocalY = y;
+  
+  updateFocalPreview();
+  focalModal.style.display = 'flex';
+}
+
+function updateFocalPreview() {
+  focalPreviewImg.style.objectPosition = `${currentFocalX}% ${currentFocalY}%`;
+}
+
+focalCancelBtn.addEventListener('click', () => {
+  focalModal.style.display = 'none';
+});
+
+focalSaveBtn.addEventListener('click', async () => {
+  focalSaveBtn.disabled = true;
+  focalSaveBtn.textContent = 'Saving...';
+  const fpStr = `${currentFocalX.toFixed(1)}% ${currentFocalY.toFixed(1)}%`;
+  try {
+    const res = await fetch(`/api/admin/image/${currentFocalId}/focal`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ focal_point: fpStr }),
+    });
+    if (res.ok) {
+      toast('Focal point saved');
+      const cfg = await fetch('/api/site-config');
+      siteConfig = await cfg.json();
+      renderHeroPanel();
+      focalModal.style.display = 'none';
+    } else {
+      toast('Failed to save focal point', 'error');
+    }
+  } catch {
+    toast('Connection error', 'error');
+  } finally {
+    focalSaveBtn.disabled = false;
+    focalSaveBtn.textContent = 'Save Position';
+  }
+});
+
+focalPreviewImg.addEventListener('pointerdown', e => {
+  isDraggingFocal = true;
+  dragStartX = e.clientX;
+  dragStartY = e.clientY;
+  dragStartObjX = currentFocalX;
+  dragStartObjY = currentFocalY;
+  focalPreviewImg.setPointerCapture(e.pointerId);
+});
+
+focalPreviewImg.addEventListener('pointermove', e => {
+  if (!isDraggingFocal) return;
+  
+  const cW = focalPreviewImg.clientWidth;
+  const cH = focalPreviewImg.clientHeight;
+  const nW = focalPreviewImg.naturalWidth;
+  const nH = focalPreviewImg.naturalHeight;
+  if (!nW || !nH) return;
+  
+  const scale = Math.max(cW / nW, cH / nH);
+  const dW = nW * scale;
+  const dH = nH * scale;
+  
+  const overflowX = Math.max(0, dW - cW);
+  const overflowY = Math.max(0, dH - cH);
+  
+  const dx = e.clientX - dragStartX;
+  const dy = e.clientY - dragStartY;
+  
+  if (overflowX > 0) {
+    const deltaPercentX = -(dx / overflowX) * 100;
+    currentFocalX = Math.max(0, Math.min(100, dragStartObjX + deltaPercentX));
+  }
+  
+  if (overflowY > 0) {
+    const deltaPercentY = -(dy / overflowY) * 100;
+    currentFocalY = Math.max(0, Math.min(100, dragStartObjY + deltaPercentY));
+  }
+  
+  updateFocalPreview();
+});
+
+focalPreviewImg.addEventListener('pointerup', e => {
+  if (isDraggingFocal) {
+    isDraggingFocal = false;
+    focalPreviewImg.releasePointerCapture(e.pointerId);
+  }
+});
+
+focalPreviewImg.addEventListener('pointercancel', e => {
+  if (isDraggingFocal) {
+    isDraggingFocal = false;
+    focalPreviewImg.releasePointerCapture(e.pointerId);
+  }
+});
 
 // ─── Init ─────────────────────────────────────────────────────────────────────────
 checkSession();
