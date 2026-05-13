@@ -13,15 +13,7 @@ const siteTitle    = document.getElementById('site-title');
 
 // ─── Global State ──────────────────────────────────────────────────────────────
 let heroIsVisible = true;
-
-// ─── Intersection Observer for Hero ────────────────────────────────────────────
-const heroSection = document.querySelector('.hero');
-if (heroSection) {
-  const heroObserver = new IntersectionObserver((entries) => {
-    heroIsVisible = entries[0].isIntersecting;
-  }, { threshold: 0 });
-  heroObserver.observe(heroSection);
-};
+let heroObserver = null;
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 const params  = new URLSearchParams(window.location.search);
@@ -156,6 +148,15 @@ function initHeroSlideshow(heroes) {
     heroTimer = setInterval(() => {
       if (heroIsVisible) nextHeroSlide();
     }, 5000);
+  }
+
+  const heroSection = document.querySelector('.hero');
+  if (heroSection) {
+    if (heroObserver) heroObserver.disconnect();
+    heroObserver = new IntersectionObserver((entries) => {
+      heroIsVisible = entries[0].isIntersecting;
+    }, { threshold: 0 });
+    heroObserver.observe(heroSection);
   }
 }
 
@@ -709,7 +710,7 @@ async function handleRoute(url) {
     const params = new URLSearchParams(new URL(url).search);
     section = params.get('section') || 'archive';
 
-    const performUpdate = () => {
+    const performUpdate = async () => {
       const appContent = document.getElementById('app-content');
       appContent.innerHTML = newContent.innerHTML;
       
@@ -720,11 +721,11 @@ async function handleRoute(url) {
       heroLink = document.getElementById('hero-link');
       
       document.title = doc.title;
-      initPage();
+      await initPage();
     };
 
     if (document.startViewTransition) {
-      document.startViewTransition(performUpdate);
+      document.startViewTransition(() => performUpdate());
     } else {
       performUpdate();
     }
