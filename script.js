@@ -11,6 +11,18 @@ const header       = document.getElementById('site-header');
 const siteNav      = document.getElementById('site-nav');
 const siteTitle    = document.getElementById('site-title');
 
+// ─── Global State ──────────────────────────────────────────────────────────────
+let heroIsVisible = true;
+
+// ─── Intersection Observer for Hero ────────────────────────────────────────────
+const heroSection = document.querySelector('.hero');
+if (heroSection) {
+  const heroObserver = new IntersectionObserver((entries) => {
+    heroIsVisible = entries[0].isIntersecting;
+  }, { threshold: 0 });
+  heroObserver.observe(heroSection);
+};
+
 // ─── State ─────────────────────────────────────────────────────────────────────
 const params  = new URLSearchParams(window.location.search);
 let section   = params.get('section') || 'archive';
@@ -141,7 +153,9 @@ function initHeroSlideshow(heroes) {
 
   if (heroSlides.length > 1) {
     if (heroTimer) clearInterval(heroTimer);
-    heroTimer = setInterval(nextHeroSlide, 5000);
+    heroTimer = setInterval(() => {
+      if (heroIsVisible) nextHeroSlide();
+    }, 5000);
   }
 }
 
