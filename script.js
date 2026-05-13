@@ -29,6 +29,11 @@ let heroTimer = null;
 window.addEventListener('load', () => document.body.classList.remove('preload'));
 
 // ─── Bootstrap: load config then images ────────────────────────────────────────
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 let siteConfigCache = null;
 
 async function initPage() {
@@ -154,16 +159,10 @@ function initHeroSlideshow(heroes) {
   if (heroSection) {
     if (heroObserver) heroObserver.disconnect();
     heroObserver = new IntersectionObserver((entries) => {
-      // Pause slideshow if hero is even slightly out of view
-      heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.05;
-      
-      // Force hide the hero section to absolutely prevent any visual bleed
-      if (!heroIsVisible) {
-        heroSection.style.visibility = 'hidden';
-      } else {
-        heroSection.style.visibility = '';
-      }
-    }, { threshold: [0, 0.05] });
+      // Pause slideshow if hero is not almost fully in view
+      // This stops any crossfading while the user is scrolled down to the gallery
+      heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.95;
+    }, { threshold: [0.95] });
     heroObserver.observe(heroSection);
   }
 }
