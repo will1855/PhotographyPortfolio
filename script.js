@@ -219,6 +219,7 @@ function getNumCols() {
  * rendering to avoid any image cropping. Dense packing fills holes left by wide images.
  */
 function layoutGallery() {
+  if (!gallery) return; // Guard: not on a page with a gallery (e.g. About)
   const numCols = getNumCols();
   // Ensure we never have a 0 colWidth during transitions
   const containerWidth = gallery.offsetWidth > 0 ? gallery.offsetWidth : window.innerWidth;
@@ -586,12 +587,18 @@ lightbox.addEventListener('touchend', e => {
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
   const y = window.scrollY;
-  header.classList.toggle('scrolled', y > 40);
-  // Use the same 40px threshold for both scrolled + hidden-header so the
-  // background darkening and the hide-on-scroll-down fire simultaneously.
-  // This eliminates the brief "dark header visible" pulse during autoscroll.
-  if (y < 40) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
-  header.classList.toggle('hidden-header', y > lastScrollY);
+  if (y < 40) {
+    // Near the top — show header with its default transparent background
+    header.classList.remove('hidden-header', 'scrolled');
+    lastScrollY = y;
+    return;
+  }
+  const goingDown = y > lastScrollY;
+  header.classList.toggle('hidden-header', goingDown);
+  // Only apply the dark 'scrolled' background when the header is visible
+  // (scrolling up to reveal it). When hiding on scroll-down the background
+  // transition plays against the fade-out and creates a visible pulse.
+  if (!goingDown) header.classList.add('scrolled');
   lastScrollY = y;
 });
 
