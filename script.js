@@ -409,7 +409,7 @@ function renderGallery() {
 new ResizeObserver(() => {
   clearTimeout(_layoutTimer);
   _layoutTimer = setTimeout(layoutGallery, 120);
-}).observe(gallery);
+}).observe(document.body);
 
 
 // ─── Lightbox ──────────────────────────────────────────────────────────────────
