@@ -597,17 +597,17 @@ function closeLightbox() {
 
 // ─── Lightbox controls ─────────────────────────────────────────────────────────
 document.addEventListener('keydown', e => {
-  if (lightbox.classList.contains('hidden')) return;
+  if (!lightbox || lightbox.classList.contains('hidden')) return;
   if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % images.length; updateLightbox(); }
   else if (e.key === 'ArrowLeft')  { currentIndex = (currentIndex - 1 + images.length) % images.length; updateLightbox(); }
   else if (e.key === 'Escape')     { closeLightbox(); }
 });
 
-lightbox.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+lightbox?.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 lightboxClose?.addEventListener('click', closeLightbox);
 
-lightbox.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
-lightbox.addEventListener('touchend', e => {
+lightbox?.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+lightbox?.addEventListener('touchend', e => {
   const delta = e.changedTouches[0].clientX - startX;
   if (Math.abs(delta) < 40) return;
   currentIndex = delta < 0
@@ -904,6 +904,7 @@ async function handleRoute(url) {
       });
 
       appContent.innerHTML = newContent.innerHTML;
+      window.scrollTo(0, 0); // Always start at the top of the new page
       
       // Update DOM refs inside app-content
       gallery = document.getElementById('gallery');
