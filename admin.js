@@ -1002,6 +1002,40 @@ function renderSectionsPanel() {
   });
 }
 
+document.getElementById('create-section-btn')?.addEventListener('click', async () => {
+  const label = prompt('Enter a name for the new section (e.g. Commercial):');
+  if (!label || !label.trim()) return;
+
+  try {
+    const res = await fetch('/api/admin/sections/new', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ label: label.trim() }),
+    });
+    
+    if (res.ok) {
+      toast(`Section "${label}" created successfully`);
+      // Refresh local data
+      const sRes = await fetch('/api/admin/sections', { credentials: 'include' });
+      sections = await sRes.json();
+      
+      const cfg = await fetch('/api/site-config');
+      siteConfig = await cfg.json();
+
+      // Re-render all panels that depend on sections
+      buildImageTabs();
+      renderSectionsPanel();
+      renderHeroPanel();
+    } else {
+      const data = await res.json();
+      toast(data.error || 'Failed to create section', 'error');
+    }
+  } catch {
+    toast('Connection error', 'error');
+  }
+});
+
 // ─── Focal Point Modal ────────────────────────────────────────────────────────
 const focalModal = document.getElementById('focal-modal');
 const focalPreviewImg = document.getElementById('focal-preview-img');

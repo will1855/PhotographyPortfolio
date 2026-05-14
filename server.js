@@ -990,6 +990,65 @@ app.post('/api/admin/site-settings', requireAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/admin/sections/new
+ * Body: { label: 'New Section' }
+ */
+app.post('/api/admin/sections/new', requireAdmin, async (req, res) => {
+  const { label } = req.body;
+  if (!label) return res.status(400).json({ error: 'Missing section label' });
+
+  // Generate URL-friendly slug
+  let slug = label.toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  if (!slug) slug = `section-${Date.now()}`;
+
+  try {
+    // Check if slug already exists
+    const { data: existing } = await supabase
+      .from('portfolio_sections')
+      .select('id')
+      .eq('slug', slug)
+      .single();
+
+    if (existing) {
+      // Append a short random string or timestamp to make it unique
+      slug = `${slug}-${Math.floor(Math.random() * 1000)}`;
+    }
+
+    // Get max sort_order
+    const { data: maxRow } = await supabase
+      .from('portfolio_sections')
+      .select('sort_order')
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .single();
+    
+    const nextOrder = (maxRow?.sort_order ?? -1) + 1;
+
+    // Insert new section (default to not visible so admin can add images first)
+    const { data: newSection, error } = await supabase
+      .from('portfolio_sections')
+      .insert({
+        slug,
+        label,
+        nav_label: label,
+        sort_order: nextOrder,
+        is_visible: false,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    res.json(newSection);
+  } catch (err) {
+    console.error('[/api/admin/sections/new]', err.message);
+    res.status(500).json({ error: 'Failed to create section' });
+  }
+});
+
+/**
  * POST /api/admin/section-settings
  * Body: { section: 'archive', label, nav_label, sort_order, is_visible }
  */
