@@ -555,6 +555,34 @@ function updateLightbox() {
 function closeLightbox() {
   ++lightboxOpenId; // invalidate all in-flight callbacks
   if (fullResLoader) { fullResLoader.onload = null; fullResLoader.onerror = null; fullResLoader = null; }
+  
+  const thumbEl = gallery?.querySelectorAll('img')[currentIndex];
+  
+  if (thumbEl && !lightbox.classList.contains('hidden')) {
+    // ── Reverse clone zoom ────────────────────────────────────────────────────
+    const rect = thumbEl.getBoundingClientRect();
+    const imgData = images[currentIndex];
+    
+    // Use the exact calculated lightbox size as the starting point
+    const { w: startW, h: startH } = calcLightboxSize(imgData);
+    
+    const clone = document.createElement('img');
+    clone.src = thumbEl.currentSrc || thumbEl.src;
+    clone.className = 'lightbox-clone';
+    clone.style.cssText = `top:${(window.innerHeight - startH) / 2}px;left:${(window.innerWidth - startW) / 2}px;width:${startW}px;height:${startH}px;`;
+    document.body.appendChild(clone);
+
+    // Animate clone back to the thumbnail grid position
+    requestAnimationFrame(() => {
+      clone.style.top    = `${rect.top}px`;
+      clone.style.left   = `${rect.left}px`;
+      clone.style.width  = `${rect.width}px`;
+      clone.style.height = `${rect.height}px`;
+    });
+
+    setTimeout(() => clone.remove(), 420);
+  }
+
   lightboxImg.classList.remove('ready', 'is-thumb');
   lightboxImg.style.width  = '';
   lightboxImg.style.height = '';
@@ -697,29 +725,25 @@ function loadAbout(config) {
   const title = config.site_title || 'Will Davies';
   document.title = `${config.about_title || 'About'} — ${title}`;
 
-  let html = '';
+  let textCol = '';
 
-  if (config.about_profile_url) {
-    html += `<img class="about-profile-img reveal" src="${config.about_profile_url}" alt="${title}" style="animation-delay: 150ms;">`;
-  }
-
-  html += `<h2 class="about-name reveal" style="animation-delay: 250ms;">${config.about_title || 'About'}</h2>`;
+  textCol += `<h2 class="about-name reveal" style="animation-delay: 250ms;">${config.about_title || 'About'}</h2>`;
 
   if (config.about_text) {
-    html += `<p class="about-text reveal" style="animation-delay: 350ms;">${escapeHtml(config.about_text)}</p>`;
+    textCol += `<p class="about-text reveal" style="animation-delay: 350ms;">${escapeHtml(config.about_text)}</p>`;
   } else {
-    html += `<p class="about-text reveal" style="animation-delay: 350ms;color:rgba(243,243,240,0.35)">About content coming soon.</p>`;
+    textCol += `<p class="about-text reveal" style="animation-delay: 350ms;color:rgba(243,243,240,0.35)">About content coming soon.</p>`;
   }
 
   const links = [];
   if (config.contact_email)  links.push(`<a href="mailto:${escapeHtml(config.contact_email)}">${escapeHtml(config.contact_email)}</a>`);
   if (config.instagram_url)  links.push(`<a href="${escapeHtml(config.instagram_url)}" target="_blank" rel="noopener">Instagram ↗</a>`);
   if (links.length > 0) {
-    html += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
+    textCol += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
   }
 
-  html += `
-    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms;">
+  textCol += `
+    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms; margin-top: 48px;">
       <h3 style="font-size:1.2rem;margin-bottom:24px;font-weight:500;">Send a message</h3>
       <div class="field">
         <label for="name">Name</label>
@@ -737,6 +761,18 @@ function loadAbout(config) {
       <div id="form-status"></div>
     </form>
   `;
+
+  let html = '';
+
+  if (config.about_profile_url) {
+    html += `<div class="about-header">
+      <img class="about-profile-img reveal" src="${config.about_profile_url}" alt="${title}" style="animation-delay: 150ms;">
+      <div class="about-text-col" style="flex: 1;">${textCol}</div>
+    </div>`;
+  } else {
+    // No profile image — render text inline without the flex wrapper
+    html += textCol;
+  }
 
   content.innerHTML = html;
 

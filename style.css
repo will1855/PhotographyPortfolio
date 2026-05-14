@@ -330,22 +330,35 @@ nav a.active { color: var(--text); }
 }
 
 .about-profile-img {
-  width: 100%;
-  max-width: 360px;
-  height: auto;
+  width: 140px;
+  height: 140px;
+  flex-shrink: 0;
   display: block;
   object-fit: cover;
-  border-radius: 4px;
-  margin-bottom: 36px;
+  border-radius: 50%;
   filter: brightness(0.94);
 }
 
+.about-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 32px;
+  margin-bottom: 36px;
+}
+
+.about-text-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
 .about-name {
-  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-size: clamp(1.4rem, 4vw, 2.2rem);
   font-weight: 500;
   letter-spacing: -0.04em;
   line-height: 1.05;
-  margin-bottom: 24px;
+  margin-bottom: 8px;
 }
 
 .about-text {
