@@ -821,10 +821,24 @@ document.addEventListener('click', async (e) => {
   const targetUrl = a.href;
 
   window.history.pushState({}, '', targetUrl);
+  _lastRoutedBase = a.pathname + a.search; // keep popstate guard in sync
   await handleRoute(targetUrl);
 });
 
+// Track the base URL (path+search) of the last SPA route so we can
+// distinguish real navigations from hash-only fragment scrolls.
+// Chrome fires popstate for both, but only real navigations need re-routing.
+let _lastRoutedBase = window.location.pathname + window.location.search;
+
 window.addEventListener('popstate', () => {
+  const currentBase = window.location.pathname + window.location.search;
+  if (currentBase === _lastRoutedBase) {
+    // Only the hash changed (e.g. clicking "View" / href="#gallery").
+    // The browser already scrolled to the anchor — no re-route needed.
+    console.log('[popstate] hash-only change, skipping re-route. hash=' + window.location.hash);
+    return;
+  }
+  _lastRoutedBase = currentBase;
   handleRoute(window.location.href);
 });
 
