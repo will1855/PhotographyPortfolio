@@ -603,27 +603,18 @@ document.addEventListener('click', e => {
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
   const y = window.scrollY;
-  header.classList.toggle('scrolled', y > 40);
-
-  // Reset the scroll-end debounce on every scroll event
-  clearTimeout(_scrollEndTimer);
-  _scrollEndTimer = setTimeout(() => {
-    smoothScrollActive = false;
-    console.log('[smooth-scroll] flag CLEARED — scroll settled at y=' + Math.round(window.scrollY));
-    // Re-evaluate header state once scroll has settled
-    const finalY = window.scrollY;
-    if (finalY >= 80) header.classList.add('hidden-header');
-  }, 300);
-
-  if (y < 80) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
-
-  if (smoothScrollActive) {
-    // During autoscroll: only allow hiding the header, never un-hide it.
-    // This prevents the jitter-triggered flash.
-    if (y > lastScrollY) header.classList.add('hidden-header');
-  } else {
-    header.classList.toggle('hidden-header', y > lastScrollY);
+  if (y < 80) {
+    // Near the top: header always visible with transparent background
+    header.classList.remove('hidden-header', 'scrolled');
+    lastScrollY = y;
+    return;
   }
+  const goingDown = y > lastScrollY;
+  header.classList.toggle('hidden-header', goingDown);
+  // Only apply the dark 'scrolled' background when the header is reappearing
+  // (scrolling up). When hiding on scroll-down, don't darken the header first
+  // — that creates a visible 'getting darker before fading' effect.
+  header.classList.toggle('scrolled', !goingDown);
   lastScrollY = y;
 }, { passive: true });
 
