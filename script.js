@@ -584,23 +584,119 @@ lightbox.addEventListener('touchend', e => {
 }, { passive: true });
 
 // ─── Header scroll behaviour ───────────────────────────────────────────────────
+// Suppress header toggling during smooth-scroll autoscroll.
+// The native smooth scroll causes a single-frame scrollY jitter (layout shift
+// from ResizeObserver/layoutGallery resizing the grid mid-scroll), which
+// makes the scroll handler think the user scrolled up and un-hides the header
+// for ~16ms — the visible "pulse". We suppress that window.
+let smoothScrollActive = false;
+let _scrollEndTimer = null;
+
+// Set the flag whenever a hash-link is clicked (e.g. the "View" button)
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href^="#"]');
+  if (!a) return;
+  smoothScrollActive = true;
+  console.log('[smooth-scroll] flag SET — suppressing header toggle during scroll');
+}, { capture: true });
+
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
   const y = window.scrollY;
-  if (y < 40) {
-    // Near the top — show header with its default transparent background
-    header.classList.remove('hidden-header', 'scrolled');
-    lastScrollY = y;
-    return;
+  header.classList.toggle('scrolled', y > 40);
+
+  // Reset the scroll-end debounce on every scroll event
+  clearTimeout(_scrollEndTimer);
+  _scrollEndTimer = setTimeout(() => {
+    smoothScrollActive = false;
+    console.log('[smooth-scroll] flag CLEARED — scroll settled at y=' + Math.round(window.scrollY));
+    // Re-evaluate header state once scroll has settled
+    const finalY = window.scrollY;
+    if (finalY >= 80) header.classList.add('hidden-header');
+  }, 300);
+
+  if (y < 80) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
+
+  if (smoothScrollActive) {
+    // During autoscroll: only allow hiding the header, never un-hide it.
+    // This prevents the jitter-triggered flash.
+    if (y > lastScrollY) header.classList.add('hidden-header');
+  } else {
+    header.classList.toggle('hidden-header', y > lastScrollY);
   }
-  const goingDown = y > lastScrollY;
-  header.classList.toggle('hidden-header', goingDown);
-  // Only apply the dark 'scrolled' background when the header is visible
-  // (scrolling up to reveal it). When hiding on scroll-down the background
-  // transition plays against the fade-out and creates a visible pulse.
-  if (!goingDown) header.classList.add('scrolled');
   lastScrollY = y;
-});
+}, { passive: true });
+
+// ─── DEBUG: Pulse investigation ────────────────────────────────────────────────
+// Intercept every class mutation on the header and log it with a timestamp.
+(function installHeaderDebug() {
+  let _lastScrollLog = -1;
+  const _add    = DOMTokenList.prototype.add;
+  const _remove = DOMTokenList.prototype.remove;
+  const _toggle = DOMTokenList.prototype.toggle;
+
+  // Wrap classList methods on the header element only
+  const origAdd = header.classList.add.bind(header.classList);
+  header.classList.add = function(...cls) {
+    console.log(`[header.classList.add] ${cls.join(',')} | y=${window.scrollY.toFixed(0)} | before: "${header.className}"`);
+    origAdd(...cls);
+  };
+  const origRemove = header.classList.remove.bind(header.classList);
+  header.classList.remove = function(...cls) {
+    console.log(`[header.classList.remove] ${cls.join(',')} | y=${window.scrollY.toFixed(0)} | before: "${header.className}"`);
+    origRemove(...cls);
+  };
+  const origToggle = header.classList.toggle.bind(header.classList);
+  header.classList.toggle = function(cls, force) {
+    const result = force !== undefined ? origToggle(cls, force) : origToggle(cls);
+    console.log(`[header.classList.toggle] ${cls}=${result} (force=${force}) | y=${window.scrollY.toFixed(0)} | now: "${header.className}"`);
+    return result;
+  };
+
+  // Log CSS transition events on the header
+  header.addEventListener('transitionstart', e => {
+    console.log(`[header.transitionstart] property=${e.propertyName} | opacity=${getComputedStyle(header).opacity} | classes="${header.className}"`);
+  });
+  header.addEventListener('transitionend', e => {
+    console.log(`[header.transitionend] property=${e.propertyName} | final-opacity=${getComputedStyle(header).opacity}`);
+  });
+
+  // Log every scroll event (throttled: only when y changes by ≥5px)
+  window.addEventListener('scroll', () => {
+    const y = Math.round(window.scrollY);
+    if (Math.abs(y - _lastScrollLog) >= 5) {
+      console.log(`[scroll] y=${y} | header: "${header.className}" | heroIsVisible=${heroIsVisible}`);
+      _lastScrollLog = y;
+    }
+  }, { passive: true });
+
+  // Monitor computed opacity on main and hero for any unexpected drops
+  let _opacityCheckId = null;
+  function checkOpacity() {
+    const mainEl  = document.querySelector('main');
+    const heroEl  = document.querySelector('.hero');
+    const footerEl = document.querySelector('footer');
+    [mainEl, heroEl, footerEl].forEach(el => {
+      if (!el) return;
+      const op = parseFloat(getComputedStyle(el).opacity);
+      if (op < 0.95) {
+        console.warn(`[opacity-watch] ${el.tagName}.${el.className.split(' ').join('.')} opacity=${op.toFixed(3)} at y=${window.scrollY.toFixed(0)}`);
+      }
+    });
+    _opacityCheckId = requestAnimationFrame(checkOpacity);
+  }
+  checkOpacity();
+
+  // Log any CSS animation starting on .reveal elements
+  document.addEventListener('animationstart', e => {
+    if (e.animationName === 'revealIn') {
+      console.warn(`[animationstart] revealIn on ${e.target.tagName}.${e.target.className} at y=${window.scrollY.toFixed(0)}`);
+      console.trace();
+    }
+  }, { capture: true });
+
+  console.log('[debug] Header + opacity + scroll watchers installed.');
+})();
 
 function loadAbout(config) {
   const content = document.getElementById('about-content');
