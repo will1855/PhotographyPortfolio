@@ -28,6 +28,21 @@ let heroTimer = null;
 // ─── Preload flash prevention ──────────────────────────────────────────────────
 window.addEventListener('load', () => document.body.classList.remove('preload'));
 
+// ─── Reveal animation cleanup ─────────────────────────────────────────────────
+// After the intro animation ends, pin opacity to 1 via inline style and drop
+// the 'reveal' class. This prevents browsers from discarding the animation
+// forwards-fill during scroll-triggered style recalculations, which would cause
+// a flash-to-black followed by the opacity transition fading back in.
+document.addEventListener('animationend', (e) => {
+  const el = e.target;
+  if (el.classList.contains('reveal') && e.animationName === 'revealIn') {
+    console.log('[reveal] animationend fired on', el.tagName, el.className, '— pinning opacity and removing class');
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+    el.classList.remove('reveal');
+  }
+}, { capture: true });
+
 // ─── Bootstrap: load config then images ────────────────────────────────────────
 if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
