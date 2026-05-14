@@ -482,6 +482,10 @@ function openLightbox(index) {
 
   lightboxImg.classList.remove('ready', 'is-thumb');
   lightbox.classList.remove('hidden');
+  
+  // Prevent layout shift when scrollbar disappears
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+  document.body.style.paddingRight = `${scrollbarWidth}px`;
   document.body.classList.add('lightbox-open');
 
   // ── Load full-res in parallel while animation plays ────────────────────────
@@ -588,6 +592,7 @@ function closeLightbox() {
   lightboxImg.style.height = '';
   lightbox.classList.add('hidden');
   document.body.classList.remove('lightbox-open');
+  document.body.style.paddingRight = '';
 }
 
 // ─── Lightbox controls ─────────────────────────────────────────────────────────
