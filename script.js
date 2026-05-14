@@ -701,9 +701,14 @@ document.addEventListener('click', async (e) => {
 
   // Only intercept same-origin, non-hash, non-target-_blank links
   if (a.origin !== window.location.origin) return;
-  if (a.hash && a.pathname === window.location.pathname && a.search === window.location.search) return;
   if (a.target === '_blank') return;
   if (a.hasAttribute('download')) return;
+
+  // Skip hash-only navigation (same page, different anchor) — let browser handle natively.
+  // Compare path+search without the fragment to be robust against any hash value.
+  const currentBase = window.location.pathname + window.location.search;
+  const targetBase  = a.pathname + a.search;
+  if (a.hash && targetBase === currentBase) return;
 
   // Intercept the click!
   e.preventDefault();
@@ -736,6 +741,16 @@ async function handleRoute(url) {
 
     const performUpdate = async () => {
       const appContent = document.getElementById('app-content');
+
+      // Strip .reveal before injecting so the View Transition "new" snapshot
+      // is never captured at opacity:0 (which causes the fade-to-black).
+      // Page navigations use the View Transition cross-fade instead.
+      newContent.querySelectorAll('.reveal').forEach(el => {
+        el.classList.remove('reveal');
+        el.style.opacity = '1';
+        el.style.transform = 'none';
+      });
+
       appContent.innerHTML = newContent.innerHTML;
       
       // Update DOM refs inside app-content
