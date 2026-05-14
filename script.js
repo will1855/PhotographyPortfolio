@@ -587,7 +587,10 @@ let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
   const y = window.scrollY;
   header.classList.toggle('scrolled', y > 40);
-  if (y < 80) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
+  // Use the same 40px threshold for both scrolled + hidden-header so the
+  // background darkening and the hide-on-scroll-down fire simultaneously.
+  // This eliminates the brief "dark header visible" pulse during autoscroll.
+  if (y < 40) { header.classList.remove('hidden-header'); lastScrollY = y; return; }
   header.classList.toggle('hidden-header', y > lastScrollY);
   lastScrollY = y;
 });

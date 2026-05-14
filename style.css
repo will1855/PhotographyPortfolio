@@ -65,7 +65,7 @@ header {
   z-index: 20;
   background: rgba(5, 5, 5, 0.15);
   backdrop-filter: blur(10px);
-  transition: opacity 260ms ease, transform 260ms ease;
+  transition: opacity 260ms ease, transform 260ms ease, background 260ms ease;
   view-transition-name: site-header;
 }
 
