@@ -305,6 +305,8 @@ nav a.active { color: var(--text); }
   z-index: 2;
   opacity: 0;
   visibility: hidden;
+  will-change: transform;
+  touch-action: none;
 }
 
 .lightbox-slide img.ready {
