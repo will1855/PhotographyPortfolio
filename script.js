@@ -1,8 +1,7 @@
 'use strict';
 // ─── DOM refs ──────────────────────────────────────────────────────────────────
 let gallery        = document.getElementById('gallery');
-const lightbox     = document.getElementById('lightbox');
-const lightboxImg  = document.getElementById('lightbox-img');
+const lightboxSlider = document.getElementById('lightbox-slider');
 const lightboxClose = document.getElementById('lightbox-close');
 let heroMedia      = document.getElementById('hero-media');
 let heroKicker     = document.getElementById('hero-kicker');
@@ -10,6 +9,8 @@ let heroLink       = document.getElementById('hero-link');
 const header       = document.getElementById('site-header');
 const siteNav      = document.getElementById('site-nav');
 const siteTitle    = document.getElementById('site-title');
+
+const lightbox     = document.getElementById('lightbox');
 
 // ─── Global State ──────────────────────────────────────────────────────────────
 let heroIsVisible = true;
@@ -76,6 +77,7 @@ async function initPage() {
         if (Array.isArray(data) && data.length > 0) {
           images = data;
           renderGallery();
+          renderLightboxSlides();
         } else {
           gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">No images yet.</p>';
         }
@@ -414,6 +416,16 @@ function renderGallery() {
   requestAnimationFrame(layoutGallery);
 }
 
+function renderLightboxSlides() {
+  if (!lightboxSlider) return;
+  lightboxSlider.innerHTML = '';
+  images.forEach((_, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'lightbox-slide';
+    lightboxSlider.appendChild(slide);
+  });
+}
+
 // Re-layout on resize (debounced)
 new ResizeObserver(() => {
   clearTimeout(_layoutTimer);
@@ -446,19 +458,62 @@ function calcLightboxSize(imgData) {
   return { w: Math.round(w), h: Math.round(h) };
 }
 
-function applyLightboxSize(imgData) {
+function applyLightboxSize(imgData, imgEl) {
   const { w, h } = calcLightboxSize(imgData);
-  lightboxImg.style.width  = `${w}px`;
-  lightboxImg.style.height = `${h}px`;
+  imgEl.style.width  = `${w}px`;
+  imgEl.style.height = `${h}px`;
+}
+
+function loadLightboxSlide(index, openId) {
+  if (index < 0 || index >= images.length) return;
+  const slide = lightboxSlider.children[index];
+  if (!slide) return;
+
+  let img = slide.querySelector('img');
+  if (!img) {
+    img = document.createElement('img');
+    slide.appendChild(img);
+  }
+
+  if (img.dataset.loadedId === String(openId)) return;
+  img.dataset.loadedId = openId;
+
+  const imgData = images[index];
+  
+  // Reset state
+  img.classList.remove('ready', 'is-thumb');
+  
+  // Load full-res in background
+  const full = new Image();
+  full.src = imgData.public_url_full;
+  
+  full.onload = () => {
+    if (openId !== lightboxOpenId) return;
+    applyLightboxSize(imgData, img);
+    img.src = imgData.public_url_full;
+    img.classList.remove('is-thumb');
+    img.classList.add('ready');
+  };
+
+  full.onerror = () => {
+    if (openId !== lightboxOpenId) return;
+    // Fallback to thumb if full fails
+    img.src = imgData.public_url_thumb;
+    img.classList.add('ready');
+  };
+
+  // Immediate thumb show
+  if (!img.src || img.src !== imgData.public_url_full) {
+    applyLightboxSize(imgData, img);
+    img.src = imgData.public_url_thumb;
+    img.classList.add('ready', 'is-thumb');
+  }
 }
 
 function openLightbox(index) {
   currentIndex = index;
   const imgData = images[index];
   const openId  = ++lightboxOpenId;
-
-  // Cancel any previous in-flight load
-  if (fullResLoader) { fullResLoader.onload = null; fullResLoader.onerror = null; fullResLoader = null; }
 
   // ── Clone zoom: starts immediately, uses cached thumbnail ──────────────────
   const thumbEl = gallery.querySelectorAll('img')[index];
@@ -472,15 +527,8 @@ function openLightbox(index) {
     clone.style.cssText = `top:${rect.top}px;left:${rect.left}px;width:${rect.width}px;height:${rect.height}px;`;
     document.body.appendChild(clone);
 
-    // Use stored DB dimensions to calculate final size without needing full-res loaded
-    const srcW  = imgData.width  || thumbEl.naturalWidth  || rect.width;
-    const srcH  = imgData.height || thumbEl.naturalHeight || rect.height;
-    const vw = window.innerWidth * 0.94, vh = window.innerHeight * 0.92;
-    const ratio = srcW / srcH;
-    let finalW = vw, finalH = finalW / ratio;
-    if (finalH > vh) { finalH = vh; finalW = finalH * ratio; }
+    const { w: finalW, h: finalH } = calcLightboxSize(imgData);
 
-    // Animate on next frame so the starting position paints first
     requestAnimationFrame(() => {
       clone.style.top    = `${(window.innerHeight - finalH) / 2}px`;
       clone.style.left   = `${(window.innerWidth  - finalW) / 2}px`;
@@ -489,94 +537,46 @@ function openLightbox(index) {
     });
   }
 
-  lightboxImg.classList.remove('ready', 'is-thumb');
-  lightbox.classList.remove('hidden');
+  // Jump slider to correct position instantly
+  lightboxSlider.style.transition = 'none';
+  lightboxSlider.style.transform = `translateX(-${index * 100}vw)`;
   
-  // Prevent layout shift when scrollbar disappears
+  lightbox.classList.remove('hidden');
   const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
   document.body.style.paddingRight = `${scrollbarWidth}px`;
   document.body.classList.add('lightbox-open');
 
-  // ── Load full-res in parallel while animation plays ────────────────────────
-  let fullLoaded = false;
-  const full = new Image();
-  fullResLoader = full;
-  full.src = imgData.public_url_full;
-  full.onload = () => {
-    if (openId !== lightboxOpenId) return;
-    fullResLoader = null;
-    fullLoaded = true;
-  };
-  full.onerror = () => { if (openId === lightboxOpenId) fullResLoader = null; };
+  // Load active slide and neighbours
+  loadLightboxSlide(index, openId);
+  loadLightboxSlide(index - 1, openId);
+  loadLightboxSlide(index + 1, openId);
 
-  // ── After animation (420ms): reveal image behind the clone ────────────────
   setTimeout(() => {
-    if (openId !== lightboxOpenId) { clone?.remove(); return; } // closed/navigated away
-    clone?.remove();
-
-    // Pin the element to the correct display dimensions BEFORE revealing.
-    // Both the thumbnail placeholder and the eventual full-res will render
-    // at exactly these dimensions — no size jump between the two.
-    applyLightboxSize(imgData);
-
-    if (fullLoaded) {
-      // Best case: full-res finished during animation — show it directly, crisp
-      lightboxImg.src = imgData.public_url_full;
-      lightboxImg.classList.remove('is-thumb');
+    if (openId === lightboxOpenId) {
+      clone?.remove();
+      lightboxSlider.style.transition = ''; // Restore transition
     } else {
-      // Still downloading — show thumbnail as a sharp enough placeholder
-      lightboxImg.src = imgData.public_url_thumb;
-      lightboxImg.classList.add('is-thumb');
-      // Cross-fade to full-res the moment it arrives
-      full.onload = () => {
-        if (openId !== lightboxOpenId) return;
-        // Instant swap — src change is atomic (image already decoded in memory).
-        // Keep 'ready' on so there is no opacity dip/flicker.
-        lightboxImg.src = imgData.public_url_full;
-        lightboxImg.classList.remove('is-thumb'); // deblur fades via filter transition
-      };
+      clone?.remove();
     }
-    lightboxImg.classList.add('ready');
   }, 420);
 }
 
 function updateLightbox() {
-  // Arrow / swipe navigation — no thumbnail to zoom from, use blur-up.
-  const imgData = images[currentIndex];
-  if (fullResLoader) { fullResLoader.onload = null; fullResLoader.onerror = null; fullResLoader = null; }
   const openId = ++lightboxOpenId;
-
-  // Fix the element size FIRST so thumbnail and full-res both render at
-  // the same dimensions — prevents the image jumping size when full-res loads.
-  applyLightboxSize(imgData);
-  lightboxImg.src = imgData.public_url_thumb;
-  lightboxImg.classList.add('ready', 'is-thumb');
-
-  const full = new Image();
-  fullResLoader = full;
-  full.src = imgData.public_url_full;
-  full.onload = () => {
-    if (openId !== lightboxOpenId) return;
-    fullResLoader = null;
-    // Instant swap — keep 'ready', just swap src and remove blur
-    lightboxImg.src = imgData.public_url_full;
-    lightboxImg.classList.remove('is-thumb');
-  };
-  full.onerror = () => { if (openId === lightboxOpenId) fullResLoader = null; };
+  lightboxSlider.style.transform = `translateX(-${currentIndex * 100}vw)`;
+  
+  loadLightboxSlide(currentIndex, openId);
+  loadLightboxSlide(currentIndex - 1, openId);
+  loadLightboxSlide(currentIndex + 1, openId);
 }
 
 function closeLightbox() {
-  ++lightboxOpenId; // invalidate all in-flight callbacks
-  if (fullResLoader) { fullResLoader.onload = null; fullResLoader.onerror = null; fullResLoader = null; }
+  ++lightboxOpenId;
   
   const thumbEl = gallery?.querySelectorAll('img')[currentIndex];
-  
   if (thumbEl && !lightbox.classList.contains('hidden')) {
-    // ── Reverse clone zoom ────────────────────────────────────────────────────
     const rect = thumbEl.getBoundingClientRect();
     const imgData = images[currentIndex];
-    
-    // Use the exact calculated lightbox size as the starting point
     const { w: startW, h: startH } = calcLightboxSize(imgData);
     
     const clone = document.createElement('img');
@@ -585,20 +585,15 @@ function closeLightbox() {
     clone.style.cssText = `top:${(window.innerHeight - startH) / 2}px;left:${(window.innerWidth - startW) / 2}px;width:${startW}px;height:${startH}px;`;
     document.body.appendChild(clone);
 
-    // Animate clone back to the thumbnail grid position
     requestAnimationFrame(() => {
       clone.style.top    = `${rect.top}px`;
       clone.style.left   = `${rect.left}px`;
       clone.style.width  = `${rect.width}px`;
       clone.style.height = `${rect.height}px`;
     });
-
     setTimeout(() => clone.remove(), 420);
   }
 
-  lightboxImg.classList.remove('ready', 'is-thumb');
-  lightboxImg.style.width  = '';
-  lightboxImg.style.height = '';
   lightbox.classList.add('hidden');
   document.body.classList.remove('lightbox-open');
   document.body.style.paddingRight = '';
@@ -615,13 +610,36 @@ document.addEventListener('keydown', e => {
 lightbox?.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
 lightboxClose?.addEventListener('click', closeLightbox);
 
-lightbox?.addEventListener('touchstart', e => { startX = e.touches[0].clientX; }, { passive: true });
+let currentTranslate = 0;
+let isDragging = false;
+
+lightbox?.addEventListener('touchstart', e => {
+  startX = e.touches[0].clientX;
+  isDragging = true;
+  lightboxSlider.style.transition = 'none';
+  currentTranslate = -currentIndex * window.innerWidth;
+}, { passive: true });
+
+lightbox?.addEventListener('touchmove', e => {
+  if (!isDragging) return;
+  const currentX = e.touches[0].clientX;
+  const diff = currentX - startX;
+  lightboxSlider.style.transform = `translateX(${currentTranslate + diff}px)`;
+}, { passive: true });
+
 lightbox?.addEventListener('touchend', e => {
-  const delta = e.changedTouches[0].clientX - startX;
-  if (Math.abs(delta) < 40) return;
-  currentIndex = delta < 0
-    ? (currentIndex + 1) % images.length
-    : (currentIndex - 1 + images.length) % images.length;
+  if (!isDragging) return;
+  isDragging = false;
+  lightboxSlider.style.transition = '';
+  const diff = e.changedTouches[0].clientX - startX;
+  
+  if (Math.abs(diff) > 50) {
+    if (diff < 0 && currentIndex < images.length - 1) {
+      currentIndex++;
+    } else if (diff > 0 && currentIndex > 0) {
+      currentIndex--;
+    }
+  }
   updateLightbox();
 }, { passive: true });
 

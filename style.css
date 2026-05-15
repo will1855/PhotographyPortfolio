@@ -279,10 +279,25 @@ nav a.active { color: var(--text); }
 }
 .lightbox-close:hover { color: var(--text); }
 
-#lightbox-img {
-  position: absolute;
-  inset: 0;
-  margin: auto;
+#lightbox-slider {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  transition: transform 450ms cubic-bezier(0.23, 1, 0.32, 1);
+  will-change: transform;
+}
+
+.lightbox-slide {
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.lightbox-slide img {
   max-width: 94vw;
   max-height: 92vh;
   object-fit: contain;
@@ -290,20 +305,16 @@ nav a.active { color: var(--text); }
   z-index: 2;
   opacity: 0;
   visibility: hidden;
-  /* Only transition filter (deblur on thumb→full swap). Opacity is set
-     directly so there is no fade-out/fade-in flicker when swapping src. */
-  transition: filter 300ms ease;
+  transition: filter 300ms ease, opacity 250ms ease;
 }
 
-#lightbox-img.ready {
+.lightbox-slide img.ready {
   opacity: 1;
   visibility: visible;
 }
 
-/* While the thumbnail is showing as placeholder, apply a subtle blur
-   so the user knows a sharper version is on its way. */
-#lightbox-img.is-thumb {
-  filter: none;
+.lightbox-slide img.is-thumb {
+  filter: blur(20px);
 }
 
 /* Clone that animates from thumbnail position to centre — uses CSS transitions */
