@@ -148,7 +148,7 @@ function initHeroSlideshow(heroes) {
 
   heroes.forEach((h, i) => {
     const div = document.createElement('div');
-    div.className = 'hero-slide' + (i === heroIndex ? ' active' : '');
+    div.className = 'hero-slide';
     const img = document.createElement('img');
     img.src = h.thumb_url; // Load optimized thumb first
     img.classList.add('loading');
@@ -168,6 +168,11 @@ function initHeroSlideshow(heroes) {
       img.classList.remove('loading');
     };
   });
+
+  // Fade in first random slide after a tiny delay to ensure transition triggers
+  setTimeout(() => {
+    if (heroSlides[heroIndex]) heroSlides[heroIndex].classList.add('active');
+  }, 50);
 
   if (heroSlides.length > 1) {
     if (heroTimer) clearInterval(heroTimer);
