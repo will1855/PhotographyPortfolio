@@ -19,12 +19,8 @@ let heroObserver = null;
 // ─── State ─────────────────────────────────────────────────────────────────────
 const params  = new URLSearchParams(window.location.search);
 let section   = params.get('section') || 'archive';
-let images    = [];   // array of image objects from API
-let currentIndex = 0;
-let startX    = 0;
-let heroSlides = [];
-let heroIndex = 0;
 let heroTimer = null;
+let sectionCache = new Map();
 
 // ─── Preload flash prevention ──────────────────────────────────────────────────
 window.addEventListener('load', () => document.body.classList.remove('preload'));
@@ -56,10 +52,16 @@ async function initPage() {
   // Try to load or use cached config
   try {
     if (!siteConfigCache) {
-      const configRes = await fetch('/api/site-config');
-      siteConfigCache = await configRes.json();
+      if (window.INITIAL_DATA) {
+        siteConfigCache = window.INITIAL_DATA;
+        // Don't delete yet as it contains initial_images
+      } else {
+        const configRes = await fetch('/api/site-config');
+        siteConfigCache = await configRes.json();
+      }
     }
     applyConfig(siteConfigCache);
+    setupNavPrefetch();
   } catch (err) {
     console.warn('[config] Failed to load site config, using defaults', err);
     applyFallbackNav();
@@ -72,8 +74,22 @@ async function initPage() {
   } else {
     if (gallery) {
       try {
-        const imgRes = await fetch(`/api/images?section=${encodeURIComponent(section)}`);
-        const data   = await imgRes.json();
+        let data;
+        // Check if we have initial images for the current section injected by the server
+        const currentSection = new URLSearchParams(window.location.search).get('section') || 'archive';
+        
+        if (siteConfigCache?.initial_images && section === currentSection) {
+          data = siteConfigCache.initial_images;
+          delete siteConfigCache.initial_images; // Use only once
+          sectionCache.set(section, data);
+        } else if (sectionCache.has(section)) {
+          data = sectionCache.get(section);
+        } else {
+          const imgRes = await fetch(`/api/images?section=${encodeURIComponent(section)}`);
+          data = await imgRes.json();
+          sectionCache.set(section, data);
+        }
+
         if (Array.isArray(data) && data.length > 0) {
           images = data;
           renderGallery();
@@ -87,6 +103,24 @@ async function initPage() {
       }
     }
   }
+}
+
+function setupNavPrefetch() {
+  if (!siteNav) return;
+  siteNav.addEventListener('mouseover', (e) => {
+    const a = e.target.closest('a');
+    if (!a || !a.href.includes('section=')) return;
+    try {
+      const url = new URL(a.href, window.location.origin);
+      const s = url.searchParams.get('section');
+      if (s && !sectionCache.has(s)) {
+        fetch(`/api/images?section=${encodeURIComponent(s)}`)
+          .then(res => res.json())
+          .then(data => sectionCache.set(s, data))
+          .catch(() => {}); // Silent fail
+      }
+    } catch (e) {}
+  }, { passive: true });
 }
 
 // ─── Apply site config to DOM ──────────────────────────────────────────────────
@@ -657,109 +691,30 @@ lightbox?.addEventListener('touchend', e => {
 }, { passive: true });
 
 // ─── Header scroll behaviour ───────────────────────────────────────────────────
-// Suppress header toggling during smooth-scroll autoscroll.
-// The native smooth scroll causes a single-frame scrollY jitter (layout shift
-// from ResizeObserver/layoutGallery resizing the grid mid-scroll), which
-// makes the scroll handler think the user scrolled up and un-hides the header
-// for ~16ms — the visible "pulse". We suppress that window.
 let smoothScrollActive = false;
 let _scrollEndTimer = null;
 
-// Set the flag whenever a hash-link is clicked (e.g. the "View" button)
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]');
   if (!a) return;
   smoothScrollActive = true;
-  console.log('[smooth-scroll] flag SET — suppressing header toggle during scroll');
 }, { capture: true });
 
 let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
   const y = window.scrollY;
   if (y < 80) {
-    // Near the top: header always visible with transparent background
     header.classList.remove('hidden-header', 'scrolled');
     lastScrollY = y;
     return;
   }
   const goingDown = y > lastScrollY;
   header.classList.toggle('hidden-header', goingDown);
-  // Only apply the dark 'scrolled' background when the header is reappearing
-  // (scrolling up). When hiding on scroll-down, don't darken the header first
-  // — that creates a visible 'getting darker before fading' effect.
   header.classList.toggle('scrolled', !goingDown);
   lastScrollY = y;
 }, { passive: true });
 
-// ─── DEBUG: Pulse investigation ────────────────────────────────────────────────
-// Intercept every class mutation on the header and log it with a timestamp.
-(function installHeaderDebug() {
-  let _lastScrollLog = -1;
-  const _add    = DOMTokenList.prototype.add;
-  const _remove = DOMTokenList.prototype.remove;
-  const _toggle = DOMTokenList.prototype.toggle;
-
-  // Wrap classList methods on the header element only
-  const origAdd = header.classList.add.bind(header.classList);
-  header.classList.add = function(...cls) {
-    console.log(`[header.classList.add] ${cls.join(',')} | y=${window.scrollY.toFixed(0)} | before: "${header.className}"`);
-    origAdd(...cls);
-  };
-  const origRemove = header.classList.remove.bind(header.classList);
-  header.classList.remove = function(...cls) {
-    console.log(`[header.classList.remove] ${cls.join(',')} | y=${window.scrollY.toFixed(0)} | before: "${header.className}"`);
-    origRemove(...cls);
-  };
-  const origToggle = header.classList.toggle.bind(header.classList);
-  header.classList.toggle = function(cls, force) {
-    const result = force !== undefined ? origToggle(cls, force) : origToggle(cls);
-    console.log(`[header.classList.toggle] ${cls}=${result} (force=${force}) | y=${window.scrollY.toFixed(0)} | now: "${header.className}"`);
-    return result;
-  };
-
-  // Log CSS transition events on the header
-  header.addEventListener('transitionstart', e => {
-    console.log(`[header.transitionstart] property=${e.propertyName} | opacity=${getComputedStyle(header).opacity} | classes="${header.className}"`);
-  });
-  header.addEventListener('transitionend', e => {
-    console.log(`[header.transitionend] property=${e.propertyName} | final-opacity=${getComputedStyle(header).opacity}`);
-  });
-
-  // Log every scroll event (throttled: only when y changes by ≥5px)
-  window.addEventListener('scroll', () => {
-    const y = Math.round(window.scrollY);
-    if (Math.abs(y - _lastScrollLog) >= 5) {
-      console.log(`[scroll] y=${y} | header: "${header.className}" | heroIsVisible=${heroIsVisible}`);
-      _lastScrollLog = y;
-    }
-  }, { passive: true });
-
-  // Monitor computed opacity on main and hero for any unexpected drops
-  let _opacityCheckId = null;
-  function checkOpacity() {
-    const mainEl  = document.querySelector('main');
-    const heroEl  = document.querySelector('.hero');
-    const footerEl = document.querySelector('footer');
-    [mainEl, heroEl, footerEl].forEach(el => {
-      if (!el) return;
-      const op = parseFloat(getComputedStyle(el).opacity);
-      if (op < 0.95) {
-        console.warn(`[opacity-watch] ${el.tagName}.${el.className.split(' ').join('.')} opacity=${op.toFixed(3)} at y=${window.scrollY.toFixed(0)}`);
-      }
-    });
-    _opacityCheckId = requestAnimationFrame(checkOpacity);
-  }
-  checkOpacity();
-
-  // Log any CSS animation starting on .reveal elements
-  document.addEventListener('animationstart', e => {
-    if (e.animationName === 'revealIn') {
-      console.warn(`[animationstart] revealIn on ${e.target.tagName}.${e.target.className} at y=${window.scrollY.toFixed(0)}`);
-      console.trace();
-    }
-  }, { capture: true });
-
-  console.log('[debug] Header + opacity + scroll watchers installed.');
+  console.log('[script] Nav prefetching and SSR support ready.');
 })();
 
 function loadAbout(config) {

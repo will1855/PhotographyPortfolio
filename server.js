@@ -100,15 +100,35 @@ async function getInjectedHtml(filename, siteConfig) {
     <meta property="og:url" content="/">
     <link rel="manifest" href="/manifest.json">
   `;
-  html = html.replace('</head>', `${performanceTags}\n${ogTags}\n</head>`);
+  const criticalCss = `
+    <style>
+      :root { --bg: #000; --text: #f3f3f0; --accent: #fff; }
+      body { background: var(--bg); color: var(--text); margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow-x: hidden; }
+      .header { position: fixed; top: 0; left: 0; width: 100%; height: 80px; z-index: 50; display: flex; align-items: center; transition: transform 0.4s, background-color 0.4s; }
+      .hero { height: 100svh; min-height: 700px; background: #000; position: relative; overflow: hidden; }
+      .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease-in-out; }
+      .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.96); transform: scale(1.02); }
+      .reveal { opacity: 0; transform: translateY(20px); }
+    </style>
+  `;
+  html = html.replace('</head>', `${criticalCss}\n${performanceTags}\n${ogTags}\n</head>`);
+  
+  // Initial Data injection
+  if (siteConfig) {
+    const dataScript = `\n<script>window.INITIAL_DATA = ${JSON.stringify(siteConfig)};</script>`;
+    html = html.replace('</head>', `${dataScript}\n</head>`);
+  }
   
   return html;
 }
 
 // Serve injected pages
 app.get('/', async (req, res) => {
+  const slug = (req.query.section || 'archive').toLowerCase().trim();
   try {
     const config = await getSiteConfigData();
+    // Also pre-fetch images for the initial section
+    config.initial_images = await getSectionImagesData(slug);
     const html = await getInjectedHtml('index.html', config);
     res.send(html);
   } catch (err) {
@@ -321,6 +341,32 @@ async function getSiteConfigData() {
     about_profile_url: aboutProfileUrl,
     sections:     formattedSections,
   };
+}
+
+/** Internal helper to fetch images for a section without an HTTP request. */
+async function getSectionImagesData(slug) {
+  try {
+    const { data: section } = await supabase
+      .from('portfolio_sections')
+      .select('id')
+      .eq('slug', slug)
+      .eq('is_visible', true)
+      .single();
+
+    if (!section) return [];
+
+    const { data: images } = await supabase
+      .from('portfolio_images')
+      .select('*')
+      .eq('section_id', section.id)
+      .eq('is_visible', true)
+      .order('sort_order', { ascending: true });
+
+    return (images || []).map(formatImageRow);
+  } catch (err) {
+    console.error('[getSectionImagesData]', err.message);
+    return [];
+  }
 }
 
 app.get('/api/site-config', async (req, res) => {
