@@ -102,13 +102,13 @@ async function getInjectedHtml(filename, siteConfig) {
   `;
   const criticalCss = `
     <style>
-      :root { --bg: #000; --text: #f3f3f0; --accent: #fff; }
+      :root { --bg: #050505; --text: #f3f3f0; --accent: #fff; --header-h: 64px; }
       body { background: var(--bg); color: var(--text); margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow-x: hidden; }
-      .header { position: fixed; top: 0; left: 0; width: 100%; height: 80px; z-index: 50; display: flex; align-items: center; transition: transform 0.4s, background-color 0.4s; }
+      header { position: fixed; top: 0; left: 0; width: 100%; height: var(--header-h); z-index: 50; display: flex; align-items: center; background: rgba(5, 5, 5, 0.15); backdrop-filter: blur(10px); }
       .hero { height: 100svh; min-height: 700px; background: #000; position: relative; overflow: hidden; }
       .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease-in-out; }
       .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.96); transform: scale(1.02); }
-      .reveal { opacity: 0; transform: translateY(20px); }
+      .reveal { opacity: 0; transform: translateY(8px); }
     </style>
   `;
   html = html.replace('</head>', `${criticalCss}\n${performanceTags}\n${ogTags}\n</head>`);
@@ -125,7 +125,7 @@ async function getInjectedHtml(filename, siteConfig) {
 
     // Preload the first hero's thumbnail for instant display
     if (heroes[initialHeroIndex]) {
-      const preloadTag = `<link rel="preload" as="image" href="${heroes[initialHeroIndex].thumb_url}">`;
+      const preloadTag = `<link rel="preload" as="image" href="${heroes[initialHeroIndex].thumb_url}" fetchpriority="high">`;
       html = html.replace('</head>', `${preloadTag}\n</head>`);
     }
   }

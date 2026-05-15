@@ -406,11 +406,12 @@ nav a.active { color: var(--text); }
   border-color: rgba(243,243,240,0.6);
 }
 
+
 /* ── Professional Animations ─────────────────────────────────────────── */
 .reveal {
   opacity: 0;
-  transform: translateY(14px);
-  animation: revealIn 800ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform: translateY(8px);
+  animation: revealIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes revealIn {

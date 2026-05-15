@@ -39,7 +39,9 @@ let panStartX = 0;
 let panStartY = 0;
 
 // ─── Preload flash prevention ──────────────────────────────────────────────────
-window.addEventListener('load', () => document.body.classList.remove('preload'));
+// Removing 'preload' as soon as the script executes (it's deferred, so DOM is ready)
+// This makes the header and hero appear much faster without waiting for all images.
+document.body.classList.remove('preload');
 
 // ─── Reveal animation cleanup ─────────────────────────────────────────────────
 // After the intro animation ends, pin opacity to 1 via inline style and drop
@@ -132,7 +134,18 @@ function setupNavPrefetch() {
       if (s && !sectionCache.has(s)) {
         fetch(`/api/images?section=${encodeURIComponent(s)}`)
           .then(res => res.json())
-          .then(data => sectionCache.set(s, data))
+          .then(data => {
+            sectionCache.set(s, data);
+            // Predictive preloading: Load the first 4 thumbnails of this section
+            // so they are ready if the user clicks.
+            data.slice(0, 4).forEach(img => {
+              const link = document.createElement('link');
+              link.rel = 'preload';
+              link.as = 'image';
+              link.href = img.public_url_thumb;
+              document.head.appendChild(link);
+            });
+          })
           .catch(() => {}); // Silent fail
       }
     } catch (e) {}
@@ -989,7 +1002,12 @@ async function handleRoute(url) {
       });
 
       appContent.innerHTML = newContent.innerHTML;
-      window.scrollTo(0, 0); // Always start at the top of the new page
+      
+      // Temporarily disable smooth scroll to ensure the jump to the top is instant
+      const oldScroll = document.documentElement.style.scrollBehavior;
+      document.documentElement.style.scrollBehavior = 'auto';
+      window.scrollTo(0, 0);
+      document.documentElement.style.scrollBehavior = oldScroll;
       
       // Update DOM refs inside app-content
       gallery = document.getElementById('gallery');
