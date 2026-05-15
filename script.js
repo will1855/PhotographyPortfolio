@@ -169,10 +169,14 @@ function initHeroSlideshow(heroes) {
     };
   });
 
-  // Fade in first random slide after a tiny delay to ensure transition triggers
-  setTimeout(() => {
-    if (heroSlides[heroIndex]) heroSlides[heroIndex].classList.add('active');
-  }, 50);
+  // Fade in first random slide after a tiny delay to ensure transition triggers.
+  // We use a double requestAnimationFrame to ensure the elements are painted 
+  // at opacity:0 before we trigger the transition to opacity:1.
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      if (heroSlides[heroIndex]) heroSlides[heroIndex].classList.add('active');
+    });
+  });
 
   if (heroSlides.length > 1) {
     if (heroTimer) clearInterval(heroTimer);
@@ -464,7 +468,7 @@ function applyLightboxSize(imgData, imgEl) {
   imgEl.style.height = `${h}px`;
 }
 
-function loadLightboxSlide(index, openId) {
+function loadLightboxSlide(index, openId, delayReady = false) {
   if (index < 0 || index >= images.length) return;
   const slide = lightboxSlider.children[index];
   if (!slide) return;
@@ -492,21 +496,21 @@ function loadLightboxSlide(index, openId) {
     applyLightboxSize(imgData, img);
     img.src = imgData.public_url_full;
     img.classList.remove('is-thumb');
-    img.classList.add('ready');
+    if (!delayReady) img.classList.add('ready');
   };
 
   full.onerror = () => {
     if (openId !== lightboxOpenId) return;
     // Fallback to thumb if full fails
     img.src = imgData.public_url_thumb;
-    img.classList.add('ready');
+    if (!delayReady) img.classList.add('ready');
   };
 
   // Immediate thumb show
   if (!img.src || img.src !== imgData.public_url_full) {
     applyLightboxSize(imgData, img);
     img.src = imgData.public_url_thumb;
-    img.classList.add('ready', 'is-thumb');
+    if (!delayReady) img.classList.add('ready', 'is-thumb');
   }
 }
 
@@ -546,14 +550,19 @@ function openLightbox(index) {
   document.body.style.paddingRight = `${scrollbarWidth}px`;
   document.body.classList.add('lightbox-open');
 
-  // Load active slide and neighbours
-  loadLightboxSlide(index, openId);
+  // Load active slide (delayed reveal) and neighbours (immediate)
+  loadLightboxSlide(index, openId, true); 
   loadLightboxSlide(index - 1, openId);
   loadLightboxSlide(index + 1, openId);
 
   setTimeout(() => {
     if (openId === lightboxOpenId) {
       clone?.remove();
+      // Now reveal the real image in the slide container
+      const activeSlide = lightboxSlider.children[index];
+      const activeImg = activeSlide?.querySelector('img');
+      if (activeImg) activeImg.classList.add('ready');
+
       lightboxSlider.style.transition = ''; // Restore transition
     } else {
       clone?.remove();
