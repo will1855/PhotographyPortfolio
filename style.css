@@ -305,7 +305,6 @@ nav a.active { color: var(--text); }
   z-index: 2;
   opacity: 0;
   visibility: hidden;
-  transition: filter 300ms ease, opacity 250ms ease;
 }
 
 .lightbox-slide img.ready {
@@ -314,7 +313,7 @@ nav a.active { color: var(--text); }
 }
 
 .lightbox-slide img.is-thumb {
-  filter: blur(20px);
+  filter: none;
 }
 
 /* Clone that animates from thumbnail position to centre — uses CSS transitions */
