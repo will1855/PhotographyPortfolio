@@ -800,8 +800,11 @@ let _scrollEndTimer = null;
 
 document.addEventListener('click', e => {
   const a = e.target.closest('a[href^="#"]');
-  if (!a) return;
-  smoothScrollActive = true;
+  if (!a) {
+    document.documentElement.classList.remove('smooth-scroll-active');
+    return;
+  }
+  document.documentElement.classList.add('smooth-scroll-active');
 }, { capture: true });
 
 let lastScrollY = window.scrollY;
@@ -1003,14 +1006,9 @@ async function handleRoute(url) {
 
       appContent.innerHTML = newContent.innerHTML;
       
-      // Force an instant scroll jump by disabling smooth behavior and using 'instant'
-      document.documentElement.style.scrollBehavior = 'auto';
-      window.scrollTo({ top: 0, behavior: 'instant' });
-      
-      // Keep it 'auto' for a moment to ensure no stray smooth animations trigger
-      requestAnimationFrame(() => {
-        document.documentElement.style.scrollBehavior = '';
-      });
+      // Ensure we are in instant scroll mode for tab switching
+      document.documentElement.classList.remove('smooth-scroll-active');
+      window.scrollTo(0, 0);
       
       // Update DOM refs inside app-content
       gallery = document.getElementById('gallery');

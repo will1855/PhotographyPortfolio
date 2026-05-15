@@ -12,6 +12,10 @@
 }
 
 html {
+  scroll-behavior: auto;
+}
+
+html.smooth-scroll-active {
   scroll-behavior: smooth;
 }
 
