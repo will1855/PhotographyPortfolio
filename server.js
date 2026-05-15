@@ -66,10 +66,11 @@ try {
 }
 
 // Serve static public files - MOVE TO TOP
-app.use(express.static(path.join(__dirname), { index: false }));
+const STATIC_CACHE = { maxAge: '1y', immutable: true };
+app.use(express.static(path.join(__dirname), { index: false, ...STATIC_CACHE }));
 // Legacy: serve local images/thumbs if they still exist (migration fallback)
-app.use('/images', express.static(path.join(__dirname, 'images')));
-app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs')));
+app.use('/images', express.static(path.join(__dirname, 'images'), STATIC_CACHE));
+app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs'), STATIC_CACHE));
 
 // =============================================================================
 // SEO & Template Injection
@@ -87,7 +88,11 @@ async function getInjectedHtml(filename, siteConfig) {
   html = html.replace(/<title>.*?<\/title>/, `<title>${filename === 'about.html' ? aboutTitle + ' — ' : ''}${title}</title>`);
   html = html.replace(/<meta name="description" content=".*?">/, `<meta name="description" content="${desc.slice(0, 160)}">`);
   
-  // OpenGraph injection
+  // OpenGraph & Performance injection
+  const performanceTags = `
+    <link rel="preconnect" href="${new URL(SUPABASE_URL).origin}">
+    <link rel="preload" href="/style.css" as="style">
+  `;
   const ogTags = `
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${desc.slice(0, 160)}">
@@ -95,7 +100,7 @@ async function getInjectedHtml(filename, siteConfig) {
     <meta property="og:url" content="/">
     <link rel="manifest" href="/manifest.json">
   `;
-  html = html.replace('</head>', `${ogTags}\n</head>`);
+  html = html.replace('</head>', `${performanceTags}\n${ogTags}\n</head>`);
   
   return html;
 }
@@ -320,6 +325,8 @@ async function getSiteConfigData() {
 
 app.get('/api/site-config', async (req, res) => {
   try {
+    // Edge cache for 1 min, allow stale-while-revalidate for 5 min
+    res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     const data = await getSiteConfigData();
     res.json(data);
   } catch (err) {
@@ -358,6 +365,8 @@ app.get('/api/images', async (req, res) => {
 
     if (imagesErr) throw imagesErr;
 
+    // Edge cache for 1 min, allow stale-while-revalidate for 5 min
+    res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
     res.json((images || []).map(formatImageRow));
   } catch (err) {
     console.error('[/api/images]', err.message);
