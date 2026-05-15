@@ -19,6 +19,11 @@ let heroObserver = null;
 // ─── State ─────────────────────────────────────────────────────────────────────
 const params  = new URLSearchParams(window.location.search);
 let section   = params.get('section') || 'archive';
+let images    = [];
+let currentIndex = 0;
+let startX    = 0;
+let heroSlides = [];
+let heroIndex = 0;
 let heroTimer = null;
 let sectionCache = new Map();
 
@@ -715,7 +720,6 @@ window.addEventListener('scroll', () => {
 }, { passive: true });
 
   console.log('[script] Nav prefetching and SSR support ready.');
-})();
 
 function loadAbout(config) {
   const content = document.getElementById('about-content');
