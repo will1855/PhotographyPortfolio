@@ -148,6 +148,11 @@ nav a.active { color: var(--text); }
   display: block;
   transform: scale(1.02);
   filter: brightness(0.96);
+  transition: filter 600ms ease;
+}
+
+.hero-slide img.loading {
+  filter: brightness(0.96) blur(20px);
 }
 
 @media (max-width: 768px) {

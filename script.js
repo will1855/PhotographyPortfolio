@@ -148,7 +148,8 @@ function initHeroSlideshow(heroes) {
     const div = document.createElement('div');
     div.className = 'hero-slide';
     const img = document.createElement('img');
-    img.src = h.full_url;
+    img.src = h.thumb_url; // Load optimized thumb first
+    img.classList.add('loading');
     img.alt = 'Hero image';
     if (h.focal_point && h.focal_point !== 'center') {
       img.style.setProperty('--mobile-focal-point', h.focal_point);
@@ -156,6 +157,14 @@ function initHeroSlideshow(heroes) {
     div.appendChild(img);
     heroMedia.appendChild(div);
     heroSlides.push(div);
+
+    // Swap to full-res when ready
+    const full = new Image();
+    full.src = h.full_url;
+    full.onload = () => {
+      img.src = h.full_url;
+      img.classList.remove('loading');
+    };
   });
 
   // Fade in first random slide after a tiny delay to ensure transition triggers
