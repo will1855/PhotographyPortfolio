@@ -23,9 +23,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-#app-content {
-  view-transition-name: app-content;
-}
+/* #app-content removed view-transition-name to prevent the "scroll-up" animation
+   when switching tabs from a scrolled position. The root transition will handle
+    the cross-fade instead. */
 
 .hero, main, .about-page, footer {
   opacity: 1;

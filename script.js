@@ -1003,11 +1003,14 @@ async function handleRoute(url) {
 
       appContent.innerHTML = newContent.innerHTML;
       
-      // Temporarily disable smooth scroll to ensure the jump to the top is instant
-      const oldScroll = document.documentElement.style.scrollBehavior;
+      // Force an instant scroll jump by disabling smooth behavior and using 'instant'
       document.documentElement.style.scrollBehavior = 'auto';
-      window.scrollTo(0, 0);
-      document.documentElement.style.scrollBehavior = oldScroll;
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      
+      // Keep it 'auto' for a moment to ensure no stray smooth animations trigger
+      requestAnimationFrame(() => {
+        document.documentElement.style.scrollBehavior = '';
+      });
       
       // Update DOM refs inside app-content
       gallery = document.getElementById('gallery');
