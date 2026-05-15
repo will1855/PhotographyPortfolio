@@ -616,7 +616,11 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'Escape')     { closeLightbox(); }
 });
 
-lightbox?.addEventListener('click', e => { if (e.target === lightbox) closeLightbox(); });
+lightbox?.addEventListener('click', e => {
+  if (e.target === lightbox || e.target === lightboxSlider || e.target.classList.contains('lightbox-slide')) {
+    closeLightbox();
+  }
+});
 lightboxClose?.addEventListener('click', closeLightbox);
 
 let currentTranslate = 0;
