@@ -125,7 +125,7 @@ async function initPage() {
 
 function setupNavPrefetch() {
   if (!siteNav) return;
-  siteNav.addEventListener('mouseover', (e) => {
+  const prefetch = (e) => {
     const a = e.target.closest('a');
     if (!a || !a.href.includes('section=')) return;
     try {
@@ -137,19 +137,18 @@ function setupNavPrefetch() {
           .then(data => {
             sectionCache.set(s, data);
             // Predictive preloading: Load the first 4 thumbnails of this section
-            // so they are ready if the user clicks.
             data.slice(0, 4).forEach(img => {
               const link = document.createElement('link');
-              link.rel = 'preload';
-              link.as = 'image';
-              link.href = img.public_url_thumb;
+              link.rel = 'preload'; link.as = 'image'; link.href = img.public_url_thumb;
               document.head.appendChild(link);
             });
           })
-          .catch(() => {}); // Silent fail
+          .catch(() => {});
       }
     } catch (e) {}
-  }, { passive: true });
+  };
+  siteNav.addEventListener('mouseover', prefetch, { passive: true });
+  siteNav.addEventListener('touchstart', prefetch, { passive: true });
 }
 
 // ─── Apply site config to DOM ──────────────────────────────────────────────────
@@ -161,31 +160,38 @@ function applyConfig(config) {
     siteTitle.querySelector('a').textContent = title;
   }
 
-  // Build nav from DB sections
+  // Build nav from DB sections if empty or update active state
   const sections = config.sections || [];
-  if (siteNav) siteNav.innerHTML = '';
-
   const isAboutPage = window.location.pathname.includes('/about');
 
-  for (const s of sections) {
-    const a = document.createElement('a');
-    a.href = `/?section=${encodeURIComponent(s.slug)}`;
-    a.textContent = s.nav_label || s.label;
-    // Only highlight section if we are NOT on the about page
-    if (!isAboutPage && s.slug === section) {
-      a.classList.add('active');
+  if (siteNav && (siteNav.children.length === 0 || siteNav.dataset.built !== 'true')) {
+    siteNav.innerHTML = '';
+    for (const s of sections) {
+      const a = document.createElement('a');
+      a.href = `/?section=${encodeURIComponent(s.slug)}`;
+      a.textContent = s.nav_label || s.label;
+      if (!isAboutPage && s.slug === section) a.classList.add('active');
+      siteNav.appendChild(a);
     }
-    if (siteNav) siteNav.appendChild(a);
+    const aboutLink = document.createElement('a');
+    aboutLink.href = '/about';
+    aboutLink.textContent = config.about_title || 'About';
+    if (isAboutPage) aboutLink.classList.add('active');
+    siteNav.appendChild(aboutLink);
+    siteNav.dataset.built = 'true';
+  } else if (siteNav) {
+    // Just update active classes
+    const allLinks = siteNav.querySelectorAll('a');
+    allLinks.forEach(a => {
+      const url = new URL(a.href, window.location.origin);
+      if (url.pathname === '/about') {
+        a.classList.toggle('active', isAboutPage);
+      } else {
+        const s = url.searchParams.get('section');
+        a.classList.toggle('active', !isAboutPage && s === section);
+      }
+    });
   }
-
-  // About link (always show if About page exists)
-  const aboutLink = document.createElement('a');
-  aboutLink.href = '/about';
-  aboutLink.textContent = config.about_title || 'About';
-  if (isAboutPage) {
-    aboutLink.classList.add('active');
-  }
-  if (siteNav) siteNav.appendChild(aboutLink);
 
   // Hero — find config for this section
   const sectionConfig = sections.find(s => s.slug === section);
@@ -976,6 +982,24 @@ window.addEventListener('popstate', () => {
 });
 
 async function handleRoute(url) {
+  const urlObj = new URL(url);
+  const newSection = urlObj.searchParams.get('section');
+  const isHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html';
+  const isCurrentHome = window.location.pathname === '/' || window.location.pathname === '/index.html';
+
+  // Optimization: If switching sections on the home page, do it locally without a full page fetch
+  if (isHome && isCurrentHome && newSection) {
+    section = newSection;
+    const performUpdate = async () => {
+      document.documentElement.classList.remove('smooth-scroll-active');
+      window.scrollTo(0, 0);
+      await initPage();
+    };
+    if (document.startViewTransition) document.startViewTransition(performUpdate);
+    else performUpdate();
+    return;
+  }
+
   try {
     const res = await fetch(url);
     const html = await res.text();
@@ -984,20 +1008,15 @@ async function handleRoute(url) {
 
     const newContent = doc.getElementById('app-content');
     if (!newContent) {
-      window.location.href = url; // Fallback to hard reload
+      window.location.href = url;
       return;
     }
 
-    // Update section parameter from the new URL
-    const params = new URLSearchParams(new URL(url).search);
-    section = params.get('section') || 'archive';
+    section = newSection || 'archive';
 
     const performUpdate = async () => {
       const appContent = document.getElementById('app-content');
 
-      // Strip .reveal before injecting so the View Transition "new" snapshot
-      // is never captured at opacity:0 (which causes the fade-to-black).
-      // Page navigations use the View Transition cross-fade instead.
       newContent.querySelectorAll('.reveal').forEach(el => {
         el.classList.remove('reveal');
         el.style.opacity = '1';
@@ -1005,12 +1024,9 @@ async function handleRoute(url) {
       });
 
       appContent.innerHTML = newContent.innerHTML;
-      
-      // Ensure we are in instant scroll mode for tab switching
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);
       
-      // Update DOM refs inside app-content
       gallery = document.getElementById('gallery');
       heroMedia = document.getElementById('hero-media');
       heroKicker = document.getElementById('hero-kicker');

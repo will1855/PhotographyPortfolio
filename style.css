@@ -78,11 +78,17 @@ header {
   z-index: 10000;
 }
 
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
+
 ::view-transition-old(site-header),
 ::view-transition-new(site-header) {
   animation: none;
   mix-blend-mode: normal;
 }
+
 
 .hidden-header {
   opacity: 0;
