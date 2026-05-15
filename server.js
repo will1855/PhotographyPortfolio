@@ -115,8 +115,19 @@ async function getInjectedHtml(filename, siteConfig) {
   
   // Initial Data injection
   if (siteConfig) {
+    // Pick initial hero index on the server for preloading
+    const heroes = siteConfig.heroes || [];
+    const initialHeroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+    siteConfig.initial_hero_index = initialHeroIndex;
+
     const dataScript = `\n<script>window.INITIAL_DATA = ${JSON.stringify(siteConfig)};</script>`;
     html = html.replace('</head>', `${dataScript}\n</head>`);
+
+    // Preload the first hero's thumbnail for instant display
+    if (heroes[initialHeroIndex]) {
+      const preloadTag = `<link rel="preload" as="image" href="${heroes[initialHeroIndex].thumb_url}">`;
+      html = html.replace('</head>', `${preloadTag}\n</head>`);
+    }
   }
   
   return html;

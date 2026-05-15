@@ -183,7 +183,17 @@ function initHeroSlideshow(heroes) {
   if (!heroMedia) return;
   heroMedia.innerHTML = '';
   heroSlides = [];
-  heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+  
+  // Use server-provided index if available for consistency with preload
+  if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number') {
+    heroIndex = window.INITIAL_DATA.initial_hero_index;
+    // Note: We don't delete it here because initHeroSlideshow might be called
+    // multiple times if initPage is re-run (though we should avoid it).
+    // Actually, delete it to ensure future navigations are random.
+    delete window.INITIAL_DATA.initial_hero_index;
+  } else {
+    heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+  }
 
   heroes.forEach((h, i) => {
     const div = document.createElement('div');
