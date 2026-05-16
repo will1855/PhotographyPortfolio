@@ -594,7 +594,7 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     delete img.dataset.delayReady;
   }
 
-  console.log(`[lightbox] slide ${index}: loadFull=${shouldLoadFull}, current=${currentIndex}, fullLoaded=${img.dataset.fullLoaded}`);
+  // console.log(`[lightbox] slide ${index}: loadFull=${shouldLoadFull}, current=${currentIndex}, fullLoaded=${img.dataset.fullLoaded}`);
 
   // 1. If already full-loaded, ensure it is visible (unless delayed) and return.
   if (img.dataset.fullLoaded === 'true') {
@@ -606,13 +606,13 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
 
   // 2. If we're told to load the full-res version (and not already loaded).
   if (shouldLoadFull) {
-    console.log(`[lightbox] slide ${index}: fetching full-res...`);
+    // console.log(`[lightbox] slide ${index}: fetching full-res...`);
     const full = new Image();
     full.fetchPriority = (index === currentIndex) ? 'high' : 'low';
     full.src = imgData.public_url_full;
     
     full.onload = () => {
-      console.log(`[lightbox] slide ${index}: full-res loaded`);
+      // console.log(`[lightbox] slide ${index}: full-res loaded`);
       applyLightboxSize(imgData, img);
       img.src = imgData.public_url_full;
       img.classList.remove('is-thumb');
@@ -621,7 +621,7 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     };
 
     full.onerror = () => {
-      console.warn(`[lightbox] slide ${index}: full-res failed`);
+      // console.warn(`[lightbox] slide ${index}: full-res failed`);
       img.src = imgData.public_url_thumb;
       if (img.dataset.delayReady !== 'true') img.classList.add('ready');
     };
