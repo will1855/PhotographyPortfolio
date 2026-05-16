@@ -584,13 +584,20 @@ function loadLightboxSlide(index, openId, delayReady = false) {
   img.dataset.loadedId = openId;
 
   const imgData = images[index];
-  
-  // Reset state
-  img.classList.remove('ready', 'is-thumb');
-  
-  // Only fetch full-res for the active slide to save data/cache
+  applyLightboxSize(imgData, img);
+
   const isCurrentlyActive = (index === currentIndex);
-  if (isCurrentlyActive && img.dataset.fullLoaded !== 'true') {
+
+  // 1. If already full-loaded, ensure it is visible and return.
+  if (img.dataset.fullLoaded === 'true') {
+    img.src = imgData.public_url_full;
+    img.classList.remove('is-thumb');
+    if (!delayReady) img.classList.add('ready');
+    return;
+  }
+
+  // 2. If active but not yet full-loaded, trigger the high-res fetch.
+  if (isCurrentlyActive) {
     const full = new Image();
     full.fetchPriority = 'high';
     full.src = imgData.public_url_full;
@@ -611,9 +618,9 @@ function loadLightboxSlide(index, openId, delayReady = false) {
     };
   }
 
-  // Immediate thumb show
-  if (!img.src || img.src !== imgData.public_url_full) {
-    applyLightboxSize(imgData, img);
+  // 3. Show thumbnail immediately (as a placeholder or for neighbors).
+  // We only set the src if it's not already pointing to the full-res version.
+  if (img.src !== imgData.public_url_full) {
     img.src = imgData.public_url_thumb;
     if (!delayReady) img.classList.add('ready', 'is-thumb');
   }
