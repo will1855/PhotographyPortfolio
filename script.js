@@ -580,8 +580,12 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     slide.appendChild(img);
   }
 
-  if (img.dataset.loadedId === String(openId)) return;
+  // Only return early if we've already handled this openId AND we aren't trying to upgrade to full-res
+  if (img.dataset.loadedId === String(openId) && !shouldLoadFull) return;
   img.dataset.loadedId = openId;
+
+  const imgData = images[index];
+  applyLightboxSize(imgData, img);
 
   if (delayReady) {
     img.classList.remove('ready');
@@ -590,10 +594,7 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     delete img.dataset.delayReady;
   }
 
-  const imgData = images[index];
-  applyLightboxSize(imgData, img);
-
-  const isCurrentlyActive = (index === currentIndex);
+  console.log(`[lightbox] slide ${index}: loadFull=${shouldLoadFull}, current=${currentIndex}, fullLoaded=${img.dataset.fullLoaded}`);
 
   // 1. If already full-loaded, ensure it is visible (unless delayed) and return.
   if (img.dataset.fullLoaded === 'true') {
@@ -604,14 +605,14 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
   }
 
   // 2. If we're told to load the full-res version (and not already loaded).
-  if (shouldLoadFull && img.dataset.fullLoaded !== 'true') {
+  if (shouldLoadFull) {
+    console.log(`[lightbox] slide ${index}: fetching full-res...`);
     const full = new Image();
     full.fetchPriority = (index === currentIndex) ? 'high' : 'low';
     full.src = imgData.public_url_full;
     
     full.onload = () => {
-      // We don't check openId here because the slide/index mapping is constant;
-      // if the full-res finishes loading, we always want to show it on this slide.
+      console.log(`[lightbox] slide ${index}: full-res loaded`);
       applyLightboxSize(imgData, img);
       img.src = imgData.public_url_full;
       img.classList.remove('is-thumb');
@@ -620,6 +621,7 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     };
 
     full.onerror = () => {
+      console.warn(`[lightbox] slide ${index}: full-res failed`);
       img.src = imgData.public_url_thumb;
       if (img.dataset.delayReady !== 'true') img.classList.add('ready');
     };
