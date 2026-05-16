@@ -11,6 +11,7 @@ const rateLimit   = require('express-rate-limit');
 const sharp       = require('sharp');
 const fs          = require('fs');
 const { createClient } = require('@supabase/supabase-js');
+const compression  = require('compression');
 
 // =============================================================================
 // Environment validation
@@ -52,6 +53,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 // Express app
 // =============================================================================
 const app = express();
+app.use(compression()); // Compress all responses
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -89,9 +91,12 @@ async function getInjectedHtml(filename, siteConfig) {
   html = html.replace(/<meta name="description" content=".*?">/, `<meta name="description" content="${desc.slice(0, 160)}">`);
   
   // OpenGraph & Performance injection
+  const supabaseOrigin = new URL(SUPABASE_URL).origin;
   const performanceTags = `
-    <link rel="preconnect" href="${new URL(SUPABASE_URL).origin}">
+    <link rel="preconnect" href="${supabaseOrigin}">
+    <link rel="dns-prefetch" href="${supabaseOrigin}">
     <link rel="preload" href="/style.css" as="style">
+    <link rel="preload" href="/script.js" as="script">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -104,9 +109,10 @@ async function getInjectedHtml(filename, siteConfig) {
     <style>
       :root { --bg: #050505; --text: #f3f3f0; --accent: #fff; --header-h: 64px; }
       body { background: var(--bg); color: var(--text); margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; overflow-x: hidden; }
-      header { position: fixed; top: 0; left: 0; width: 100%; height: var(--header-h); z-index: 50; display: flex; align-items: center; background: rgba(5, 5, 5, 0.15); backdrop-filter: blur(10px); }
+      header { position: fixed; top: 0; left: 0; width: 100%; height: var(--header-h); z-index: 50; display: flex; align-items: center; background: rgba(5, 5, 5, 0.15); backdrop-filter: blur(10px); transition: opacity 0.3s ease; }
       .hero { height: 100svh; min-height: 700px; background: #000; position: relative; overflow: hidden; }
       .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease-in-out; }
+      .hero-slide.active { opacity: 1; }
       .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.96); transform: scale(1.02); }
       .reveal { opacity: 0; transform: translateY(8px); }
     </style>
@@ -605,8 +611,8 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
 
         // Generate WebP thumbnail in memory
         const thumbBuffer = await sharp(file.buffer)
-          .resize({ width: 1400, withoutEnlargement: true })
-          .webp({ quality: 85 })
+          .resize({ width: 1000, withoutEnlargement: true }) // Reduced from 1400px for better performance
+          .webp({ quality: 80 }) // Slightly lower quality for thumbnails (hardly noticeable)
           .toBuffer();
 
         // Upload full-res

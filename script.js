@@ -140,6 +140,7 @@ function setupNavPrefetch() {
             data.slice(0, 4).forEach(img => {
               const link = document.createElement('link');
               link.rel = 'preload'; link.as = 'image'; link.href = img.public_url_thumb;
+              link.setAttribute('fetchpriority', 'low'); // Lower priority for predictive preloading
               document.head.appendChild(link);
             });
           })
@@ -239,13 +240,25 @@ function initHeroSlideshow(heroes) {
     heroMedia.appendChild(div);
     heroSlides.push(div);
 
-    // Swap to full-res when ready
-    const full = new Image();
-    full.src = h.full_url;
-    full.onload = () => {
-      img.src = h.full_url;
-      img.classList.remove('loading');
+    // Swap to full-res when ready.
+    // Optimization: Only load the first (active) slide's full-res immediately.
+    // Stagger others to avoid bandwidth competition during initial page load.
+    const loadFullRes = () => {
+      const full = new Image();
+      full.src = h.full_url;
+      if (i === heroIndex) full.fetchPriority = 'high';
+      full.onload = () => {
+        img.src = h.full_url;
+        img.classList.remove('loading');
+      };
     };
+
+    if (i === heroIndex) {
+      loadFullRes();
+    } else {
+      // Stagger loading of other hero slides
+      setTimeout(loadFullRes, 2000 + (i * 500));
+    }
   });
 
   // Fade in first random slide after a tiny delay to ensure transition triggers.
@@ -482,6 +495,7 @@ function renderGallery() {
     img.src      = imgData.public_url_thumb;
     img.alt      = imgData.alt_text || imgData.title || '';
     img.loading  = index < 8 ? 'eager' : 'lazy'; // first 8 load immediately
+    if (index < 8) img.fetchPriority = 'high';   // Prioritise initial view images
     img.decoding = 'async';
 
     // Set aspect-ratio so the element has correct proportions even before load
@@ -568,6 +582,7 @@ function loadLightboxSlide(index, openId, delayReady = false) {
   
   // Load full-res in background
   const full = new Image();
+  full.fetchPriority = 'high'; // Prioritise lightbox images as they are requested by user action
   full.src = imgData.public_url_full;
   
   full.onload = () => {
