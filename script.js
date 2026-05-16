@@ -985,10 +985,10 @@ async function handleRoute(url) {
   const urlObj = new URL(url);
   const newSection = urlObj.searchParams.get('section');
   const isHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html';
-  const isCurrentHome = window.location.pathname === '/' || window.location.pathname === '/index.html';
+  const hasGallery = !!document.getElementById('gallery');
 
   // Optimization: If switching sections on the home page, do it locally without a full page fetch
-  if (isHome && isCurrentHome && newSection) {
+  if (isHome && hasGallery && newSection) {
     section = newSection;
     const performUpdate = async () => {
       document.documentElement.classList.remove('smooth-scroll-active');
