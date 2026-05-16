@@ -12,6 +12,7 @@ const sharp       = require('sharp');
 const fs          = require('fs');
 const { createClient } = require('@supabase/supabase-js');
 const compression  = require('compression');
+const { Resend }    = require('resend');
 
 // =============================================================================
 // Environment validation
@@ -48,6 +49,9 @@ const IS_PROD = NODE_ENV === 'production';
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
+
+// Initialize Resend (optional, only sends if key is provided)
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // =============================================================================
 // Express app
@@ -457,6 +461,35 @@ app.post('/api/contact', async (req, res) => {
       .insert({ name, email, message });
 
     if (error) throw error;
+
+    // 2. Attempt to send email notification (best-effort)
+    if (resend) {
+      try {
+        // Fetch current contact email from settings
+        const { data: settings } = await supabase.from('site_settings').select('contact_email').single();
+        const recipient = settings?.contact_email;
+
+        if (recipient) {
+          await resend.emails.send({
+            from: 'Portfolio Contact <onboarding@resend.dev>',
+            to: recipient,
+            subject: `New Inquiry from ${name}`,
+            html: `
+              <h2>New Portfolio Inquiry</h2>
+              <p><strong>From:</strong> ${name} (${email})</p>
+              <p><strong>Message:</strong></p>
+              <div style="white-space: pre-wrap; background: #f4f4f4; padding: 15px; border-radius: 5px; font-family: sans-serif;">${message}</div>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+              <p style="font-size: 0.8rem; color: #666;">View this message in your <a href="${req.protocol}://${req.get('host')}/admin">admin dashboard</a>.</p>
+            `,
+          });
+          console.log(`[contact] Email notification sent to ${recipient}`);
+        }
+      } catch (emailErr) {
+        console.error('[contact] Email notification failed:', emailErr.message);
+      }
+    }
+
     res.json({ ok: true });
   } catch (err) {
     console.error('[/api/contact]', err.message);
