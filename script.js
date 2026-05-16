@@ -136,8 +136,8 @@ function setupNavPrefetch() {
           .then(res => res.json())
           .then(data => {
             sectionCache.set(s, data);
-            // Predictive preloading: Load the first 4 thumbnails of this section
-            data.slice(0, 4).forEach(img => {
+            // Predictive preloading: Load the first 2 thumbnails of this section
+            data.slice(0, 2).forEach(img => {
               const link = document.createElement('link');
               link.rel = 'preload'; link.as = 'image'; link.href = img.public_url_thumb;
               link.setAttribute('fetchpriority', 'low'); // Lower priority for predictive preloading
@@ -240,24 +240,26 @@ function initHeroSlideshow(heroes) {
     heroMedia.appendChild(div);
     heroSlides.push(div);
 
-    // Swap to full-res when ready.
-    // Optimization: Only load the first (active) slide's full-res immediately.
-    // Stagger others to avoid bandwidth competition during initial page load.
+    // Attach full-res URL for on-demand loading
+    img.dataset.fullUrl = h.full_url;
+
     const loadFullRes = () => {
+      if (img.dataset.fullLoaded === 'true') return;
       const full = new Image();
-      full.src = h.full_url;
       if (i === heroIndex) full.fetchPriority = 'high';
+      full.src = h.full_url;
       full.onload = () => {
         img.src = h.full_url;
         img.classList.remove('loading');
+        img.dataset.fullLoaded = 'true';
       };
     };
 
+    // Store reference to load function for later use
+    div.loadFullRes = loadFullRes;
+
     if (i === heroIndex) {
       loadFullRes();
-    } else {
-      // Stagger loading of other hero slides
-      setTimeout(loadFullRes, 2000 + (i * 500));
     }
   });
 
@@ -293,6 +295,12 @@ function nextHeroSlide() {
   if (heroSlides.length < 2) return;
   heroSlides[heroIndex].classList.remove('active');
   heroIndex = (heroIndex + 1) % heroSlides.length;
+  
+  // Trigger full-res load for the incoming slide
+  if (heroSlides[heroIndex].loadFullRes) {
+    heroSlides[heroIndex].loadFullRes();
+  }
+  
   heroSlides[heroIndex].classList.add('active');
 }
 
@@ -580,25 +588,28 @@ function loadLightboxSlide(index, openId, delayReady = false) {
   // Reset state
   img.classList.remove('ready', 'is-thumb');
   
-  // Load full-res in background
-  const full = new Image();
-  full.fetchPriority = 'high'; // Prioritise lightbox images as they are requested by user action
-  full.src = imgData.public_url_full;
-  
-  full.onload = () => {
-    if (openId !== lightboxOpenId) return;
-    applyLightboxSize(imgData, img);
-    img.src = imgData.public_url_full;
-    img.classList.remove('is-thumb');
-    if (!delayReady) img.classList.add('ready');
-  };
+  // Only fetch full-res for the active slide to save data/cache
+  const isCurrentlyActive = (index === currentIndex);
+  if (isCurrentlyActive && img.dataset.fullLoaded !== 'true') {
+    const full = new Image();
+    full.fetchPriority = 'high';
+    full.src = imgData.public_url_full;
+    
+    full.onload = () => {
+      if (openId !== lightboxOpenId) return;
+      applyLightboxSize(imgData, img);
+      img.src = imgData.public_url_full;
+      img.classList.remove('is-thumb');
+      img.dataset.fullLoaded = 'true';
+      if (!delayReady) img.classList.add('ready');
+    };
 
-  full.onerror = () => {
-    if (openId !== lightboxOpenId) return;
-    // Fallback to thumb if full fails
-    img.src = imgData.public_url_thumb;
-    if (!delayReady) img.classList.add('ready');
-  };
+    full.onerror = () => {
+      if (openId !== lightboxOpenId) return;
+      img.src = imgData.public_url_thumb;
+      if (!delayReady) img.classList.add('ready');
+    };
+  }
 
   // Immediate thumb show
   if (!img.src || img.src !== imgData.public_url_full) {
