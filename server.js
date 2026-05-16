@@ -611,8 +611,8 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
 
         // Generate WebP thumbnail in memory
         const thumbBuffer = await sharp(file.buffer)
-          .resize({ width: 1000, withoutEnlargement: true }) // Reduced from 1400px for better performance
-          .webp({ quality: 80 }) // Slightly lower quality for thumbnails (hardly noticeable)
+          .resize({ width: 1200, withoutEnlargement: true }) // Adjusted to 1200px
+          .webp({ quality: 82 }) // Balanced quality
           .toBuffer();
 
         // Upload full-res

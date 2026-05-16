@@ -41,8 +41,8 @@ async function regenerate() {
 
       // 2. Generate new thumbnail
       const thumbBuffer = await sharp(buffer)
-        .resize({ width: 1400, withoutEnlargement: true })
-        .webp({ quality: 85 })
+        .resize({ width: 1200, withoutEnlargement: true })
+        .webp({ quality: 82 })
         .toBuffer();
 
       // 3. Upload (overwrite) thumbnail
