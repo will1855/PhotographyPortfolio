@@ -356,6 +356,8 @@ async function getSiteConfigData() {
     about_title:  settings?.about_title || 'About',
     about_text:   settings?.about_text  || '',
     about_profile_url: aboutProfileUrl,
+    about_profile_storage_path: settings?.about_profile_storage_path || null,
+    about_profile_image_id:     settings?.about_profile_image_id     || null,
     contact_email: settings?.contact_email || null,
     instagram_url: settings?.instagram_url || null,
     sections:     formattedSections,
