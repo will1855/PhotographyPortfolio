@@ -657,7 +657,7 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
           .from(SUPABASE_IMAGES_BUCKET)
           .upload(fullPath, file.buffer, {
             contentType: file.mimetype,
-            cacheControl: '3600',
+            cacheControl: '86400',
             upsert: false,
           });
         if (fullUploadErr) throw new Error(`Full upload failed: ${fullUploadErr.message}`);
@@ -667,7 +667,7 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
           .from(SUPABASE_THUMBS_BUCKET)
           .upload(thumbPath, thumbBuffer, {
             contentType: 'image/webp',
-            cacheControl: '3600',
+            cacheControl: '86400',
             upsert: false,
           });
         if (thumbUploadErr) throw new Error(`Thumb upload failed: ${thumbUploadErr.message}`);
@@ -728,7 +728,7 @@ app.post('/api/admin/upload-profile', requireAdmin, upload.single('image'), asyn
       .from(SUPABASE_IMAGES_BUCKET)
       .upload(storagePath, req.file.buffer, {
         contentType: req.file.mimetype,
-        cacheControl: '3600',
+        cacheControl: '86400',
         upsert: false,
       });
 
@@ -980,13 +980,13 @@ app.post('/api/admin/image/:id/rotate', requireAdmin, async (req, res) => {
     // 8. Upload rotated full-res to new path
     const { error: fullUpErr } = await supabase.storage
       .from(SUPABASE_IMAGES_BUCKET)
-      .upload(newFullPath, rotatedFullBuffer, { contentType: mimeType, cacheControl: '3600', upsert: false });
+      .upload(newFullPath, rotatedFullBuffer, { contentType: mimeType, cacheControl: '86400', upsert: false });
     if (fullUpErr) throw new Error(`Full upload failed: ${fullUpErr.message}`);
 
     // 9. Upload new thumbnail to new path
     const { error: thumbUpErr } = await supabase.storage
       .from(SUPABASE_THUMBS_BUCKET)
-      .upload(newThumbPath, thumbBuffer, { contentType: 'image/webp', cacheControl: '3600', upsert: false });
+      .upload(newThumbPath, thumbBuffer, { contentType: 'image/webp', cacheControl: '86400', upsert: false });
     if (thumbUpErr) {
       // Roll back the full upload before throwing
       await supabase.storage.from(SUPABASE_IMAGES_BUCKET).remove([newFullPath]);

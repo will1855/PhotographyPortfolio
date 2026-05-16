@@ -569,7 +569,7 @@ function applyLightboxSize(imgData, imgEl) {
   imgEl.style.height = `${h}px`;
 }
 
-function loadLightboxSlide(index, openId, delayReady = false) {
+function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = false) {
   if (index < 0 || index >= images.length) return;
   const slide = lightboxSlider.children[index];
   if (!slide) return;
@@ -596,10 +596,10 @@ function loadLightboxSlide(index, openId, delayReady = false) {
     return;
   }
 
-  // 2. If active but not yet full-loaded, trigger the high-res fetch.
-  if (isCurrentlyActive) {
+  // 2. If we're told to load the full-res version (and not already loaded).
+  if (shouldLoadFull && img.dataset.fullLoaded !== 'true') {
     const full = new Image();
-    full.fetchPriority = 'high';
+    full.fetchPriority = (index === currentIndex) ? 'high' : 'low';
     full.src = imgData.public_url_full;
     
     full.onload = () => {
@@ -663,9 +663,9 @@ function openLightbox(index) {
   document.body.classList.add('lightbox-open');
 
   // Load active slide (delayed reveal) and neighbours (immediate)
-  loadLightboxSlide(index, openId, true); 
-  loadLightboxSlide(index - 1, openId);
-  loadLightboxSlide(index + 1, openId);
+  loadLightboxSlide(index, openId, true, true); // delayReady = true, shouldLoadFull = true
+  loadLightboxSlide(index - 1, openId, false, false);
+  loadLightboxSlide(index + 1, openId, false, false);
 
   setTimeout(() => {
     if (openId === lightboxOpenId) {
@@ -714,9 +714,19 @@ function updateLightbox() {
   const openId = ++lightboxOpenId;
   lightboxSlider.style.transform = `translateX(-${currentIndex * 100}vw)`;
   
-  loadLightboxSlide(currentIndex, openId);
-  loadLightboxSlide(currentIndex - 1, openId);
-  loadLightboxSlide(currentIndex + 1, openId);
+  // 1. Show thumbnails immediately for the new view and its neighbours
+  loadLightboxSlide(currentIndex, openId, false, false);
+  loadLightboxSlide(currentIndex - 1, openId, false, false);
+  loadLightboxSlide(currentIndex + 1, openId, false, false);
+
+  // 2. Defer heavy full-res loading until after the swipe animation (450ms)
+  // to keep the movement fluid. We also preload the NEXT photo's high-res.
+  setTimeout(() => {
+    if (openId === lightboxOpenId) {
+      loadLightboxSlide(currentIndex, openId, false, true); // loadFull = true
+      loadLightboxSlide(currentIndex + 1, openId, false, true); // preload next high-res
+    }
+  }, 480);
 }
 
 function closeLightbox() {
