@@ -154,11 +154,23 @@ function setupNavPrefetch() {
 
 // ─── Apply site config to DOM ──────────────────────────────────────────────────
 function applyConfig(config) {
-  // Site title
-  const title = config.site_title || 'Will Davies';
-  document.title = title;
+  const site_title = config.site_title || 'Will Davies';
+  const sections = config.sections || [];
+  const isAboutPage = window.location.pathname.includes('/about');
+  const sectionConfig = sections.find(s => s.slug === section);
+
+  // Dynamic Browser Title
+  if (isAboutPage) {
+    document.title = `${config.about_title || 'About'} — ${site_title}`;
+  } else if (sectionConfig && sectionConfig.slug !== 'archive') {
+    // Show section name unless it's the default archive
+    document.title = `${sectionConfig.label} — ${site_title}`;
+  } else {
+    document.title = site_title;
+  }
+
   if (siteTitle && siteTitle.querySelector('a')) {
-    siteTitle.querySelector('a').textContent = title;
+    siteTitle.querySelector('a').textContent = site_title;
   }
 
   // Build nav from DB sections if empty or update active state
