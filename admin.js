@@ -1182,7 +1182,13 @@ async function renderMessagesPanel() {
     const res  = await fetch('/api/admin/inquiries', { credentials: 'include' });
     const data = await res.json();
 
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      throw new Error(data.error || `Server error: ${res.status}`);
+    }
+
+    if (!Array.isArray(data)) {
+      throw new Error('Invalid data format received from server');
+    }
 
     count.textContent = data.length ? `${data.length} total` : '';
     
@@ -1195,15 +1201,15 @@ async function renderMessagesPanel() {
       <div class="message-card" data-id="${msg.id}">
         <div class="message-header">
           <div class="message-author">
-            <span class="message-name">${msg.name}</span>
-            <a href="mailto:${msg.email}" class="message-email">${msg.email}</a>
+            <span class="message-name">${msg.name || 'Anonymous'}</span>
+            <a href="mailto:${msg.email}" class="message-email">${msg.email || ''}</a>
           </div>
           <div class="message-meta">
             <span class="message-date">${new Date(msg.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
             <button class="btn btn-danger btn-sm delete-inquiry-btn" data-id="${msg.id}">✕</button>
           </div>
         </div>
-        <div class="message-body">${msg.message.replace(/\n/g, '<br>')}</div>
+        <div class="message-body">${(msg.message || '').replace(/\n/g, '<br>')}</div>
       </div>
     `).join('');
 
@@ -1217,15 +1223,19 @@ async function renderMessagesPanel() {
           if (dRes.ok) {
             toast('Message deleted');
             renderMessagesPanel(); // refresh
+          } else {
+            const dData = await dRes.json();
+            toast(dData.error || 'Delete failed', 'error');
           }
         } catch {
-          toast('Delete failed', 'error');
+          toast('Connection error', 'error');
         }
       };
     });
 
   } catch (err) {
-    list.innerHTML = '<p class="text-error" style="padding:20px 0">Failed to load messages</p>';
+    console.error('[renderMessagesPanel]', err);
+    list.innerHTML = `<p class="text-error" style="padding:20px 0">Error: ${err.message}</p>`;
   }
 }
 
