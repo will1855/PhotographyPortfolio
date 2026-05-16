@@ -53,6 +53,7 @@ function showPanel(name) {
 
   if (name === 'hero')     renderHeroPanel();
   if (name === 'about')    renderAboutPanel();
+  if (name === 'messages') renderMessagesPanel();
   if (name === 'settings') renderSettingsPanel();
   if (name === 'sections') renderSectionsPanel();
 }
@@ -1170,6 +1171,63 @@ focalPreviewImg.addEventListener('pointercancel', e => {
     focalPreviewImg.releasePointerCapture(e.pointerId);
   }
 });
+
+// ─── Messages panel ──────────────────────────────────────────────────────────────
+async function renderMessagesPanel() {
+  const list  = document.getElementById('messages-list');
+  const count = document.getElementById('messages-count');
+  list.innerHTML = '<p class="text-muted" style="padding:20px 0">Loading…</p>';
+
+  try {
+    const res  = await fetch('/api/admin/inquiries', { credentials: 'include' });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error();
+
+    count.textContent = data.length ? `${data.length} total` : '';
+    
+    if (data.length === 0) {
+      list.innerHTML = '<div class="empty-state">No messages yet.</div>';
+      return;
+    }
+
+    list.innerHTML = data.map(msg => `
+      <div class="message-card" data-id="${msg.id}">
+        <div class="message-header">
+          <div class="message-author">
+            <span class="message-name">${msg.name}</span>
+            <a href="mailto:${msg.email}" class="message-email">${msg.email}</a>
+          </div>
+          <div class="message-meta">
+            <span class="message-date">${new Date(msg.created_at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+            <button class="btn btn-danger btn-sm delete-inquiry-btn" data-id="${msg.id}">✕</button>
+          </div>
+        </div>
+        <div class="message-body">${msg.message.replace(/\n/g, '<br>')}</div>
+      </div>
+    `).join('');
+
+    // Attach delete listeners
+    list.querySelectorAll('.delete-inquiry-btn').forEach(btn => {
+      btn.onclick = async () => {
+        if (!confirm('Delete this message?')) return;
+        const id = btn.dataset.id;
+        try {
+          const dRes = await fetch(`/api/admin/inquiry/${id}`, { method: 'DELETE', credentials: 'include' });
+          if (dRes.ok) {
+            toast('Message deleted');
+            renderMessagesPanel(); // refresh
+          }
+        } catch {
+          toast('Delete failed', 'error');
+        }
+      };
+    });
+
+  } catch (err) {
+    list.innerHTML = '<p class="text-error" style="padding:20px 0">Failed to load messages</p>';
+  }
+}
 
 // ─── Init ─────────────────────────────────────────────────────────────────────────
 checkSession();

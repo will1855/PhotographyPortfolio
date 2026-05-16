@@ -356,6 +356,8 @@ async function getSiteConfigData() {
     about_title:  settings?.about_title || 'About',
     about_text:   settings?.about_text  || '',
     about_profile_url: aboutProfileUrl,
+    contact_email: settings?.contact_email || null,
+    instagram_url: settings?.instagram_url || null,
     sections:     formattedSections,
   };
 }
@@ -1145,6 +1147,45 @@ app.post('/api/admin/section-settings', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[/api/admin/section-settings]', err.message);
     res.status(500).json({ error: 'Failed to update section' });
+  }
+});
+
+/**
+ * GET /api/admin/inquiries
+ * Returns all contact form submissions, newest first.
+ */
+app.get('/api/admin/inquiries', requireAdmin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('contact_inquiries')
+      .select('*')
+      .order('created_at', { ascending: false });
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('[GET /api/admin/inquiries]', err.message);
+    res.status(500).json({ error: 'Failed to fetch inquiries' });
+  }
+});
+
+/**
+ * DELETE /api/admin/inquiry/:id
+ * Deletes a specific inquiry.
+ */
+app.delete('/api/admin/inquiry/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase
+      .from('contact_inquiries')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[DELETE /api/admin/inquiry]', err.message);
+    res.status(500).json({ error: 'Failed to delete inquiry' });
   }
 });
 

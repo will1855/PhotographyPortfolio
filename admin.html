@@ -66,6 +66,7 @@
         <button class="sidebar-link active" data-panel="images">Images</button>
         <button class="sidebar-link" data-panel="hero">Hero</button>
         <button class="sidebar-link" data-panel="about">About</button>
+        <button class="sidebar-link" data-panel="messages">Messages</button>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">Site</div>
@@ -166,6 +167,19 @@
 
         <div class="row mt-md">
           <button class="btn btn-primary" id="save-about-btn">Save About</button>
+        </div>
+      </section>
+      
+      <!-- ── Messages panel ────────────────────────────────────────────── -->
+      <section class="panel" id="panel-messages">
+        <div class="row" style="justify-content: space-between; align-items: baseline;">
+          <h2 class="panel-title">Messages</h2>
+          <span id="messages-count" class="text-muted" style="font-size:0.85rem;"></span>
+        </div>
+        <p class="panel-desc">Inquiries sent from the contact form on your About page.</p>
+
+        <div id="messages-list" class="messages-list">
+          <p class="text-muted" style="padding:20px 0">Loading…</p>
         </div>
       </section>
 
