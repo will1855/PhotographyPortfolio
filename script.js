@@ -174,9 +174,6 @@ function applyConfig(config) {
   }
 
   // Build nav from DB sections if empty or update active state
-  const sections = config.sections || [];
-  const isAboutPage = window.location.pathname.includes('/about');
-
   if (siteNav && (siteNav.children.length === 0 || siteNav.dataset.built !== 'true')) {
     siteNav.innerHTML = '';
     for (const s of sections) {
@@ -207,7 +204,6 @@ function applyConfig(config) {
   }
 
   // Hero — find config for this section
-  const sectionConfig = sections.find(s => s.slug === section);
   if (sectionConfig && !isAboutPage) {
     if (heroKicker) {
       heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
