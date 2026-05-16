@@ -583,16 +583,23 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
   if (img.dataset.loadedId === String(openId)) return;
   img.dataset.loadedId = openId;
 
+  if (delayReady) {
+    img.classList.remove('ready');
+    img.dataset.delayReady = 'true';
+  } else {
+    delete img.dataset.delayReady;
+  }
+
   const imgData = images[index];
   applyLightboxSize(imgData, img);
 
   const isCurrentlyActive = (index === currentIndex);
 
-  // 1. If already full-loaded, ensure it is visible and return.
+  // 1. If already full-loaded, ensure it is visible (unless delayed) and return.
   if (img.dataset.fullLoaded === 'true') {
     img.src = imgData.public_url_full;
     img.classList.remove('is-thumb');
-    if (!delayReady) img.classList.add('ready');
+    if (img.dataset.delayReady !== 'true') img.classList.add('ready');
     return;
   }
 
@@ -603,26 +610,25 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
     full.src = imgData.public_url_full;
     
     full.onload = () => {
-      if (openId !== lightboxOpenId) return;
+      // We don't check openId here because the slide/index mapping is constant;
+      // if the full-res finishes loading, we always want to show it on this slide.
       applyLightboxSize(imgData, img);
       img.src = imgData.public_url_full;
       img.classList.remove('is-thumb');
       img.dataset.fullLoaded = 'true';
-      if (!delayReady) img.classList.add('ready');
+      if (img.dataset.delayReady !== 'true') img.classList.add('ready');
     };
 
     full.onerror = () => {
-      if (openId !== lightboxOpenId) return;
       img.src = imgData.public_url_thumb;
-      if (!delayReady) img.classList.add('ready');
+      if (img.dataset.delayReady !== 'true') img.classList.add('ready');
     };
   }
 
   // 3. Show thumbnail immediately (as a placeholder or for neighbors).
-  // We only set the src if it's not already pointing to the full-res version.
   if (img.src !== imgData.public_url_full) {
     img.src = imgData.public_url_thumb;
-    if (!delayReady) img.classList.add('ready', 'is-thumb');
+    if (img.dataset.delayReady !== 'true') img.classList.add('ready', 'is-thumb');
   }
 }
 
@@ -670,12 +676,13 @@ function openLightbox(index) {
   setTimeout(() => {
     if (openId === lightboxOpenId) {
       clone?.remove();
-      // Now reveal the real image in the slide container
       const activeSlide = lightboxSlider.children[index];
       const activeImg = activeSlide?.querySelector('img');
-      if (activeImg) activeImg.classList.add('ready');
-
-      lightboxSlider.style.transition = ''; // Restore transition
+      if (activeImg) {
+        delete activeImg.dataset.delayReady;
+        activeImg.classList.add('ready');
+      }
+      lightboxSlider.style.transition = '';
     } else {
       clone?.remove();
     }
@@ -720,10 +727,15 @@ function updateLightbox() {
   loadLightboxSlide(currentIndex + 1, openId, false, false);
 
   // 2. Defer heavy full-res loading until after the swipe animation (450ms)
-  // to keep the movement fluid. We also preload the NEXT photo's high-res.
+  // We trigger the current slide load slightly sooner (100ms) to reduce perceived lag.
   setTimeout(() => {
     if (openId === lightboxOpenId) {
-      loadLightboxSlide(currentIndex, openId, false, true); // loadFull = true
+      loadLightboxSlide(currentIndex, openId, false, true);
+    }
+  }, 100);
+
+  setTimeout(() => {
+    if (openId === lightboxOpenId) {
       loadLightboxSlide(currentIndex + 1, openId, false, true); // preload next high-res
     }
   }, 480);
