@@ -306,7 +306,16 @@ function initHeroSlideshow(heroes) {
 
 function nextHeroSlide() {
   if (heroSlides.length < 2) return;
-  heroSlides[heroIndex].classList.remove('active');
+  
+  const oldSlide = heroSlides[heroIndex];
+  oldSlide.classList.add('last-active');
+  oldSlide.classList.remove('active');
+  
+  // Remove last-active class after the fade transition completes (1600ms transition + 400ms buffer)
+  setTimeout(() => {
+    oldSlide.classList.remove('last-active');
+  }, 2000);
+
   heroIndex = (heroIndex + 1) % heroSlides.length;
   
   // Trigger full-res load for the incoming slide
@@ -608,63 +617,63 @@ function loadLightboxSlide(index, openId, delayReady = false, shouldLoadFull = f
   const slide = lightboxSlider.children[index];
   if (!slide) return;
 
-  let img = slide.querySelector('img');
-  if (!img) {
-    img = document.createElement('img');
-    slide.appendChild(img);
+  let thumbImg = slide.querySelector('.lightbox-thumb');
+  let fullImg = slide.querySelector('.lightbox-full');
+
+  if (!thumbImg) {
+    thumbImg = document.createElement('img');
+    thumbImg.className = 'lightbox-thumb';
+    slide.appendChild(thumbImg);
+  }
+  if (!fullImg) {
+    fullImg = document.createElement('img');
+    fullImg.className = 'lightbox-full';
+    slide.appendChild(fullImg);
   }
 
-  // Only return early if we've already handled this openId AND we aren't trying to upgrade to full-res
-  if (img.dataset.loadedId === String(openId) && !shouldLoadFull) return;
-  img.dataset.loadedId = openId;
+  if (thumbImg.dataset.loadedId === String(openId) && !shouldLoadFull) return;
+  thumbImg.dataset.loadedId = openId;
+  fullImg.dataset.loadedId = openId;
 
   const imgData = images[index];
-  applyLightboxSize(imgData, img);
+  applyLightboxSize(imgData, thumbImg);
+  applyLightboxSize(imgData, fullImg);
 
-  if (delayReady) {
-    img.classList.remove('ready');
-    img.dataset.delayReady = 'true';
-  } else {
-    delete img.dataset.delayReady;
+  if (!thumbImg.src) {
+    thumbImg.src = imgData.public_url_thumb;
   }
 
-  // console.log(`[lightbox] slide ${index}: loadFull=${shouldLoadFull}, current=${currentIndex}, fullLoaded=${img.dataset.fullLoaded}`);
+  if (delayReady) {
+    thumbImg.classList.remove('ready');
+    thumbImg.dataset.delayReady = 'true';
+    fullImg.classList.remove('ready');
+    fullImg.dataset.delayReady = 'true';
+  } else {
+    delete thumbImg.dataset.delayReady;
+    delete fullImg.dataset.delayReady;
+    thumbImg.classList.add('ready');
+  }
 
-  // 1. If already full-loaded, ensure it is visible (unless delayed) and return.
-  if (img.dataset.fullLoaded === 'true') {
-    img.src = imgData.public_url_full;
-    img.classList.remove('is-thumb');
-    if (img.dataset.delayReady !== 'true') img.classList.add('ready');
+  if (fullImg.dataset.fullLoaded === 'true') {
+    if (!fullImg.src) fullImg.src = imgData.public_url_full;
+    if (fullImg.dataset.delayReady !== 'true') {
+      fullImg.classList.add('ready');
+    }
     return;
   }
 
-  // 2. If we're told to load the full-res version (and not already loaded).
   if (shouldLoadFull) {
-    // console.log(`[lightbox] slide ${index}: fetching full-res...`);
-    const full = new Image();
-    full.fetchPriority = (index === currentIndex) ? 'high' : 'low';
-    full.src = imgData.public_url_full;
-    
-    full.onload = () => {
-      // console.log(`[lightbox] slide ${index}: full-res loaded`);
-      applyLightboxSize(imgData, img);
-      img.src = imgData.public_url_full;
-      img.classList.remove('is-thumb');
-      img.dataset.fullLoaded = 'true';
-      if (img.dataset.delayReady !== 'true') img.classList.add('ready');
+    fullImg.src = imgData.public_url_full;
+    fullImg.onload = () => {
+      applyLightboxSize(imgData, fullImg);
+      fullImg.dataset.fullLoaded = 'true';
+      if (fullImg.dataset.delayReady !== 'true') {
+        fullImg.classList.add('ready');
+      }
     };
-
-    full.onerror = () => {
-      // console.warn(`[lightbox] slide ${index}: full-res failed`);
-      img.src = imgData.public_url_thumb;
-      if (img.dataset.delayReady !== 'true') img.classList.add('ready');
+    fullImg.onerror = () => {
+      console.warn(`[lightbox] slide ${index}: full-res failed to load`);
     };
-  }
-
-  // 3. Show thumbnail immediately (as a placeholder or for neighbors).
-  if (img.src !== imgData.public_url_full) {
-    img.src = imgData.public_url_thumb;
-    if (img.dataset.delayReady !== 'true') img.classList.add('ready', 'is-thumb');
   }
 }
 
@@ -733,10 +742,19 @@ function openLightbox(index) {
     if (openId === lightboxOpenId) {
       clone?.remove();
       const activeSlide = lightboxSlider.children[index];
-      const activeImg = activeSlide?.querySelector('img');
-      if (activeImg) {
-        delete activeImg.dataset.delayReady;
-        activeImg.classList.add('ready');
+      if (activeSlide) {
+        const thumb = activeSlide.querySelector('.lightbox-thumb');
+        const full = activeSlide.querySelector('.lightbox-full');
+        if (thumb) {
+          delete thumb.dataset.delayReady;
+          thumb.classList.add('ready');
+        }
+        if (full) {
+          delete full.dataset.delayReady;
+          if (full.dataset.fullLoaded === 'true') {
+            full.classList.add('ready');
+          }
+        }
       }
       lightboxSlider.style.transition = '';
     } else {
@@ -753,11 +771,12 @@ function getDistance(touch1, touch2) {
 
 function updateImageTransform() {
   const slide = lightboxSlider.children[currentIndex];
-  const img = slide?.querySelector('img');
-  if (!img) return;
-  
-  img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomScale})`;
-  img.style.transition = (isPinching || isDragging) ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  if (!slide) return;
+  const imgs = slide.querySelectorAll('.lightbox-thumb, .lightbox-full');
+  imgs.forEach(img => {
+    img.style.transform = `translate(${translateX}px, ${translateY}px) scale(${zoomScale})`;
+    img.style.transition = (isPinching || isDragging) ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  });
 }
 
 function resetZoom() {
@@ -915,10 +934,12 @@ lightbox?.addEventListener('touchmove', e => {
 
       if (isSwipingVertical) {
         const slide = lightboxSlider.children[currentIndex];
-        const img = slide?.querySelector('img');
-        if (img) {
-          img.classList.add('swiping');
-          img.style.transform = `translateY(${diffY}px)`;
+        const imgs = slide?.querySelectorAll('.lightbox-thumb, .lightbox-full');
+        if (imgs && imgs.length > 0) {
+          imgs.forEach(img => {
+            img.classList.add('swiping');
+            img.style.transform = `translateY(${diffY}px)`;
+          });
           // Fade backdrop slightly as we swipe down
           const bgOpacity = Math.max(0.1, 0.72 - Math.abs(diffY) / 600);
           const blurAmount = Math.max(0, 18 - Math.abs(diffY) / 20);
@@ -947,20 +968,24 @@ lightbox?.addEventListener('touchend', e => {
     } else if (isSwipingVertical) {
       const diffY = e.changedTouches[0].clientY - startY;
       const slide = lightboxSlider.children[currentIndex];
-      const img = slide?.querySelector('img');
+      const imgs = slide?.querySelectorAll('.lightbox-thumb, .lightbox-full');
       
-      if (img) {
-        img.classList.remove('swiping');
+      if (imgs && imgs.length > 0) {
+        imgs.forEach(img => img.classList.remove('swiping'));
         if (Math.abs(diffY) > 120) {
           // Swipe to dismiss!
-          img.classList.add('dismissing');
-          img.style.transform = `translateY(${diffY > 0 ? '100vh' : '-100vh'})`;
-          img.style.opacity = '0';
+          imgs.forEach(img => {
+            img.classList.add('dismissing');
+            img.style.transform = `translateY(${diffY > 0 ? '100vh' : '-100vh'})`;
+            img.style.opacity = '0';
+          });
           setTimeout(() => {
             closeLightbox();
-            img.style.transform = '';
-            img.style.opacity = '';
-            img.classList.remove('dismissing');
+            imgs.forEach(img => {
+              img.style.transform = '';
+              img.style.opacity = '';
+              img.classList.remove('dismissing');
+            });
             // Clean up custom backgrounds
             lightbox.style.backgroundColor = '';
             lightbox.style.backdropFilter = '';
@@ -968,13 +993,15 @@ lightbox?.addEventListener('touchend', e => {
           }, 250);
         } else {
           // Bounce back
-          img.classList.add('dismissing');
-          img.style.transform = '';
+          imgs.forEach(img => {
+            img.classList.add('dismissing');
+            img.style.transform = '';
+          });
           lightbox.style.backgroundColor = '';
           lightbox.style.backdropFilter = '';
           lightbox.style.webkitBackdropFilter = '';
           setTimeout(() => {
-            img.classList.remove('dismissing');
+            imgs.forEach(img => img.classList.remove('dismissing'));
           }, 250);
         }
       }

@@ -305,9 +305,11 @@ nav a.active { color: var(--text); }
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  position: relative;
 }
 
 .lightbox-slide img {
+  position: absolute;
   max-width: 94vw;
   max-height: 92vh;
   object-fit: contain;
@@ -317,6 +319,10 @@ nav a.active { color: var(--text); }
   visibility: hidden;
   will-change: transform;
   touch-action: none;
+}
+
+.lightbox-slide img.lightbox-full {
+  z-index: 3;
 }
 
 .lightbox-slide img.ready {
@@ -536,7 +542,8 @@ footer {
 #form-status.error { color: #f87171; }
 
 /* ── Ken Burns Slideshow Effect ───────────────────────────────────────────── */
-.hero-slide.active img {
+.hero-slide.active img,
+.hero-slide.last-active img {
   animation: kenburns 10s ease-out forwards;
 }
 
