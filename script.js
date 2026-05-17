@@ -718,10 +718,16 @@ function openLightbox(index) {
   document.body.style.paddingRight = `${scrollbarWidth}px`;
   document.body.classList.add('lightbox-open');
 
-  // Load active slide (delayed reveal) and neighbours (immediate)
+  // Load active slide (delayed reveal)
   loadLightboxSlide(index, openId, true, true); // delayReady = true, shouldLoadFull = true
-  loadLightboxSlide(index - 1, openId, false, false);
-  loadLightboxSlide(index + 1, openId, false, false);
+
+  // Defer neighbor slides to yield to the main thread for instant layout rendering
+  setTimeout(() => {
+    if (openId === lightboxOpenId) {
+      loadLightboxSlide(index - 1, openId, false, false);
+      loadLightboxSlide(index + 1, openId, false, false);
+    }
+  }, 50);
 
   setTimeout(() => {
     if (openId === lightboxOpenId) {
@@ -771,10 +777,16 @@ function updateLightbox() {
   const openId = ++lightboxOpenId;
   lightboxSlider.style.transform = `translateX(-${currentIndex * 100}vw)`;
   
-  // 1. Show thumbnails immediately for the new view and its neighbours
+  // 1. Show thumbnail immediately for the active view
   loadLightboxSlide(currentIndex, openId, false, false);
-  loadLightboxSlide(currentIndex - 1, openId, false, false);
-  loadLightboxSlide(currentIndex + 1, openId, false, false);
+
+  // Defer neighbor slides to yield to the main thread during swipe/navigation
+  setTimeout(() => {
+    if (openId === lightboxOpenId) {
+      loadLightboxSlide(currentIndex - 1, openId, false, false);
+      loadLightboxSlide(currentIndex + 1, openId, false, false);
+    }
+  }, 50);
 
   // 2. Defer heavy full-res loading until after the swipe animation (450ms)
   // We trigger the current slide load slightly sooner (100ms) to reduce perceived lag.
@@ -998,17 +1010,24 @@ document.addEventListener('click', e => {
 }, { capture: true });
 
 let lastScrollY = window.scrollY;
+let scrollTicking = false;
+
 window.addEventListener('scroll', () => {
-  const y = window.scrollY;
-  if (y < 80) {
-    header.classList.remove('hidden-header', 'scrolled');
-    lastScrollY = y;
-    return;
+  if (!scrollTicking) {
+    window.requestAnimationFrame(() => {
+      const y = window.scrollY;
+      if (y < 80) {
+        header.classList.remove('hidden-header', 'scrolled');
+      } else {
+        const goingDown = y > lastScrollY;
+        header.classList.toggle('hidden-header', goingDown);
+        header.classList.toggle('scrolled', !goingDown);
+      }
+      lastScrollY = y;
+      scrollTicking = false;
+    });
+    scrollTicking = true;
   }
-  const goingDown = y > lastScrollY;
-  header.classList.toggle('hidden-header', goingDown);
-  header.classList.toggle('scrolled', !goingDown);
-  lastScrollY = y;
 }, { passive: true });
 
   console.log('[script] Nav prefetching and SSR support ready.');
