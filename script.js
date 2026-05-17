@@ -1236,11 +1236,13 @@ initPage();
 
 // ─── Analytics Log Utility ────────────────────────────────────────────────────
 function logAnalyticsEvent(type, target) {
-  fetch('/api/analytics/log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ event_type: type, event_target: target })
-  }).catch(() => {}); // Gracefully catch database or connection failures silently
+  setTimeout(() => {
+    fetch('/api/analytics/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event_type: type, event_target: target })
+    }).catch(() => {}); // Gracefully catch database or connection failures silently
+  }, 2500);
 }
 
 // ─── Register PWA Service Worker ──────────────────────────────────────────────

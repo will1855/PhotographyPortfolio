@@ -39,6 +39,11 @@ self.addEventListener('activate', (e) => {
 
 // 3. Fetch event: Cache-first for images, stale-while-revalidate for static shell, bypass for API
 self.addEventListener('fetch', (e) => {
+  // Caching is only supported for GET requests. Bypass completely for POST, PUT, DELETE, etc.
+  if (e.request.method !== 'GET') {
+    return;
+  }
+
   const url = new URL(e.request.url);
 
   // Bypass cache completely for API endpoints and Admin panel
