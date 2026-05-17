@@ -2,7 +2,14 @@
   "version": 2,
   "functions": {
     "server.js": {
-      "includeFiles": "*.html, *.css, script.js, admin.js, manifest.json, logo.png"
+      "includeFiles": [
+        "*.html",
+        "*.css",
+        "script.js",
+        "admin.js",
+        "manifest.json",
+        "logo.png"
+      ]
     }
   },
   "headers": [
