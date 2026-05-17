@@ -571,7 +571,11 @@ footer {
 }
 
 .lightbox-slide img {
-  transition: transform 150ms ease-out, opacity 150ms ease-out;
+  transition: transform 150ms ease-out;
+}
+
+.lightbox-slide img.lightbox-full {
+  transition: transform 150ms ease-out, opacity 250ms ease-out;
 }
 
 .lightbox-slide img.swiping {
