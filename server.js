@@ -107,7 +107,7 @@ async function getInjectedHtml(filename, siteConfig) {
     <meta property="og:description" content="${desc.slice(0, 160)}">
     <meta property="og:type" content="website">
     <meta property="og:url" content="/">
-    <link rel="manifest" href="/manifest.json">
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
   `;
   const criticalCss = `
     <style>
