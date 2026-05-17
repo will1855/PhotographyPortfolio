@@ -497,6 +497,83 @@ app.post('/api/contact', async (req, res) => {
   }
 });
 
+/**
+ * GET /sitemap.xml
+ * Dynamically generates a valid sitemap.xml from portfolio_sections in database.
+ */
+app.get('/sitemap.xml', async (req, res) => {
+  try {
+    const protocol = req.headers['x-forwarded-proto'] || 'https';
+    const host = req.get('host');
+    const baseUrl = `${protocol}://${host}`;
+
+    // Get all active visible sections
+    const { data: sections } = await supabase
+      .from('portfolio_sections')
+      .select('slug')
+      .eq('is_visible', true);
+
+    const slugs = ['archive', 'studies']; // Fallbacks in case query is empty
+    if (sections && sections.length > 0) {
+      slugs.length = 0; // Clear fallbacks if database responds
+      sections.forEach(s => slugs.push(s.slug));
+    }
+
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+
+    // 1. Home page
+    xml += `  <url>\n    <loc>${baseUrl}/</loc>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n`;
+
+    // 2. About page
+    xml += `  <url>\n    <loc>${baseUrl}/about</loc>\n    <changefreq>monthly</changefreq>\n    <priority>0.7</priority>\n  </url>\n`;
+
+    // 3. Sections pages
+    for (const slug of slugs) {
+      xml += `  <url>\n    <loc>${baseUrl}/?section=${encodeURIComponent(slug)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+    }
+
+    xml += `</urlset>`;
+
+    res.header('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    console.error('[/sitemap.xml]', err.message);
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
+/**
+ * POST /api/analytics/log
+ * Logs an anonymous analytic event: event_type, event_target.
+ */
+app.post('/api/analytics/log', async (req, res) => {
+  const { event_type, event_target } = req.body;
+  if (!event_type || !event_target) {
+    return res.status(400).json({ error: 'Missing required parameters' });
+  }
+
+  try {
+    const { error } = await supabase
+      .from('portfolio_analytics')
+      .insert({ event_type, event_target });
+
+    if (error) {
+      if (error.code === '42P01') {
+        console.warn('[analytics] portfolio_analytics table does not exist. Run migration 002_analytics.sql.');
+        return res.json({ ok: false, warning: 'analytics table missing' });
+      }
+      throw error;
+    }
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.warn('[analytics] Graceful fail:', err.message);
+    res.json({ ok: false, error: err.message });
+  }
+});
+
+
 // =============================================================================
 // ADMIN AUTH ROUTES
 // =============================================================================
@@ -541,6 +618,69 @@ app.post('/admin/logout', (_req, res) => {
 app.get('/api/admin/session', requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
+
+/** GET /api/admin/analytics — fetch and aggregate logs for dashboard stats */
+app.get('/api/admin/analytics', requireAdmin, async (req, res) => {
+  try {
+    const { data: events, error } = await supabase
+      .from('portfolio_analytics')
+      .select('event_type, event_target, created_at')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code === '42P01') {
+        return res.json({
+          ok: true,
+          warning: 'analytics_table_missing',
+          totalViews: 0,
+          totalClicks: 0,
+          sectionViews: {},
+          topImages: [],
+          viewsByDate: {}
+        });
+      }
+      throw error;
+    }
+
+    let totalViews = 0;
+    let totalClicks = 0;
+    const sectionViews = {};
+    const imageClicks = {};
+    const viewsByDate = {};
+
+    if (events && events.length > 0) {
+      events.forEach(e => {
+        const dateStr = new Date(e.created_at).toISOString().split('T')[0]; // YYYY-MM-DD
+        if (e.event_type === 'page_view') {
+          totalViews++;
+          sectionViews[e.event_target] = (sectionViews[e.event_target] || 0) + 1;
+          viewsByDate[dateStr] = (viewsByDate[dateStr] || 0) + 1;
+        } else if (e.event_type === 'lightbox_click') {
+          totalClicks++;
+          imageClicks[e.event_target] = (imageClicks[e.event_target] || 0) + 1;
+        }
+      });
+    }
+
+    const topImages = Object.entries(imageClicks)
+      .map(([target, clicks]) => ({ target, clicks }))
+      .sort((a, b) => b.clicks - a.clicks)
+      .slice(0, 10);
+
+    res.json({
+      ok: true,
+      totalViews,
+      totalClicks,
+      sectionViews,
+      topImages,
+      viewsByDate
+    });
+  } catch (err) {
+    console.error('[/api/admin/analytics]', err.message);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
+});
+
 
 /** GET /api/admin/images?section=<slug> — all images (including hidden) for a section */
 app.get('/api/admin/images', requireAdmin, async (req, res) => {

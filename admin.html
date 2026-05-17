@@ -70,6 +70,7 @@
       </div>
       <div class="sidebar-section">
         <div class="sidebar-label">Site</div>
+        <button class="sidebar-link" data-panel="analytics">Analytics</button>
         <button class="sidebar-link" data-panel="settings">Settings</button>
         <button class="sidebar-link" data-panel="sections">Sections</button>
       </div>
@@ -222,6 +223,72 @@
 
         <div id="sections-list">
           <!-- Populated dynamically -->
+        </div>
+      </section>
+
+      <!-- ── Analytics panel ───────────────────────────────────────────── -->
+      <section class="panel" id="panel-analytics">
+        <h2 class="panel-title">Analytics Dashboard</h2>
+        <p class="panel-desc">Real-time visitor telemetry. Monitor category engagement, magnification counts, and image interest distribution.</p>
+
+        <!-- Stats Cards Grid -->
+        <div class="analytics-metrics-grid">
+          <div class="metric-card">
+            <span class="metric-label">Total Site Views</span>
+            <h3 class="metric-value" id="stats-total-views">-</h3>
+            <span class="metric-subtext">Navigations & route hits</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Image Clicks</span>
+            <h3 class="metric-value" id="stats-total-clicks">-</h3>
+            <span class="metric-subtext">Lightbox magnifications</span>
+          </div>
+          <div class="metric-card">
+            <span class="metric-label">Engaged Images</span>
+            <h3 class="metric-value" id="stats-total-assets">-</h3>
+            <span class="metric-subtext">Distinct clicked photos</span>
+          </div>
+        </div>
+
+        <!-- Analytics Visualizations -->
+        <div class="analytics-charts-grid">
+          <!-- Daily Activity Column -->
+          <div class="chart-card">
+            <h4 class="chart-title">Activity Trend (Past 7 Days)</h4>
+            <div class="bar-chart-container" id="stats-daily-chart">
+              <div class="chart-empty-state">No telemetry data recorded yet</div>
+            </div>
+          </div>
+
+          <!-- Section Interest -->
+          <div class="chart-card">
+            <h4 class="chart-title">Interest by Portfolio Section</h4>
+            <div class="distribution-list" id="stats-section-dist">
+              <div class="chart-empty-state">No section traffic data</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Top Performing Images Table -->
+        <div class="chart-card mt-md">
+          <h4 class="chart-title">Top Performing Portfolio Images</h4>
+          <div class="top-images-table-container">
+            <table class="analytics-table">
+              <thead>
+                <tr>
+                  <th style="width:60px;">Rank</th>
+                  <th style="width:80px;">Preview</th>
+                  <th>Image Title / Filename</th>
+                  <th style="width:180px; text-align:right;">Views / Clicks</th>
+                </tr>
+              </thead>
+              <tbody id="stats-top-images-rows">
+                <tr>
+                  <td colspan="4" class="text-center text-muted" style="padding:20px 0;">No telemetry metrics recorded yet.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

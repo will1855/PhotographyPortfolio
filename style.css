@@ -534,3 +534,56 @@ footer {
 
 #form-status.success { color: #4ade80; }
 #form-status.error { color: #f87171; }
+
+/* ── Ken Burns Slideshow Effect ───────────────────────────────────────────── */
+.hero-slide.active img {
+  animation: kenburns 10s ease-out forwards;
+}
+
+@keyframes kenburns {
+  0% {
+    transform: scale(1.02) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.06) translate(0.5%, -0.3%);
+  }
+}
+
+/* ── Lightbox Counter & Swipe Transitions ────────────────────────────────── */
+.lightbox-counter {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 110;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-family: system-ui, -apple-system, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
+
+.lightbox-slide img {
+  transition: transform 150ms ease-out, opacity 150ms ease-out;
+}
+
+.lightbox-slide img.swiping {
+  transition: none !important;
+}
+
+.lightbox-slide img.dismissing {
+  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease !important;
+}
+
+/* ── Scroll-Triggered Reveals ─────────────────────────────────────────────── */
+.reveal-on-scroll {
+  opacity: 0 !important;
+  transform: translateY(24px) scale(0.985);
+  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.reveal-on-scroll.revealed {
+  opacity: 1 !important;
+  transform: translateY(0) scale(1) !important;
+}

@@ -28,7 +28,7 @@ let heroIndex = 0;
 let heroTimer = null;
 let sectionCache = new Map();
 
-// ─── Zoom State ───────────────────────────────────────────────────────────────
+// ─── Zoom & Swipe State ───────────────────────────────────────────────────────
 let zoomScale = 1;
 let lastZoomScale = 1;
 let initialPinchDistance = 0;
@@ -37,6 +37,8 @@ let translateX = 0;
 let translateY = 0;
 let panStartX = 0;
 let panStartY = 0;
+let isSwipingVertical = false;
+let isSwipingHorizontal = false;
 
 // ─── Preload flash prevention ──────────────────────────────────────────────────
 // Removing 'preload' as soon as the script executes (it's deferred, so DOM is ready)
@@ -121,6 +123,9 @@ async function initPage() {
       }
     }
   }
+
+  // Dynamic page view analytics logging
+  logAnalyticsEvent('page_view', isAbout ? 'about' : section);
 }
 
 function setupNavPrefetch() {
@@ -503,6 +508,19 @@ function layoutGallery() {
 }
 
 let _layoutTimer = null;
+// ─── Scroll Reveal Observer ───────────────────────────────────────────────────
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('revealed');
+      revealObserver.unobserve(entry.target);
+    }
+  });
+}, {
+  rootMargin: '0px 0px -60px 0px',
+  threshold: 0.05
+});
+
 function renderGallery() {
   gallery.innerHTML = '';
 
@@ -510,8 +528,8 @@ function renderGallery() {
     const img    = document.createElement('img');
     img.src      = imgData.public_url_thumb;
     img.alt      = imgData.alt_text || imgData.title || '';
-    img.loading  = index < 8 ? 'eager' : 'lazy'; // first 8 load immediately
-    if (index < 8) img.fetchPriority = 'high';   // Prioritise initial view images
+    img.loading  = index < 8 ? 'eager' : 'lazy';
+    if (index < 8) img.fetchPriority = 'high';
     img.decoding = 'async';
 
     // Set aspect-ratio so the element has correct proportions even before load
@@ -523,6 +541,14 @@ function renderGallery() {
     img.addEventListener('load', () => img.classList.add('loaded'));
     img.addEventListener('click', () => openLightbox(index));
     gallery.appendChild(img);
+
+    // Apply scroll reveal animation (bypass for first 4 initial photos)
+    if (index >= 4) {
+      img.classList.add('reveal-on-scroll');
+      revealObserver.observe(img);
+    } else {
+      img.classList.add('revealed');
+    }
   });
 
   // Run layout after DOM is painted so gallery.offsetWidth is accurate
@@ -674,6 +700,20 @@ function openLightbox(index) {
   lightboxSlider.style.transform = `translateX(-${index * 100}vw)`;
   
   lightbox.classList.remove('hidden');
+  
+  // Create or update lightbox counter
+  let counter = lightbox.querySelector('.lightbox-counter');
+  if (!counter) {
+    counter = document.createElement('div');
+    counter.className = 'lightbox-counter';
+    lightbox.appendChild(counter);
+  }
+  counter.textContent = `${index + 1} / ${images.length}`;
+
+  // Log analytics click event
+  if (imgData) {
+    logAnalyticsEvent('lightbox_click', imgData.title || imgData.original_filename || imgData.id);
+  }
   const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
   document.body.style.paddingRight = `${scrollbarWidth}px`;
   document.body.classList.add('lightbox-open');
@@ -749,6 +789,18 @@ function updateLightbox() {
       loadLightboxSlide(currentIndex + 1, openId, false, true); // preload next high-res
     }
   }, 480);
+
+  // Update lightbox slide counter
+  const counter = lightbox.querySelector('.lightbox-counter');
+  if (counter) {
+    counter.textContent = `${currentIndex + 1} / ${images.length}`;
+  }
+
+  // Log analytics click event for the navigated slide
+  const imgData = images[currentIndex];
+  if (imgData) {
+    logAnalyticsEvent('lightbox_click', imgData.title || imgData.original_filename || imgData.id);
+  }
 }
 
 function closeLightbox() {
@@ -808,6 +860,8 @@ lightbox?.addEventListener('touchstart', e => {
   } else if (e.touches.length === 1) {
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
+    isSwipingVertical = false;
+    isSwipingHorizontal = false;
     
     if (zoomScale > 1) {
       isDragging = true;
@@ -834,8 +888,36 @@ lightbox?.addEventListener('touchmove', e => {
       updateImageTransform();
     } else {
       const currentX = e.touches[0].clientX;
-      const diff = currentX - startX;
-      lightboxSlider.style.transform = `translateX(${currentTranslate + diff}px)`;
+      const currentY = e.touches[0].clientY;
+      const diffX = currentX - startX;
+      const diffY = currentY - startY;
+
+      // Lock direction if not decided
+      if (!isSwipingVertical && !isSwipingHorizontal) {
+        if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 8) {
+          isSwipingVertical = true;
+        } else if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 8) {
+          isSwipingHorizontal = true;
+        }
+      }
+
+      if (isSwipingVertical) {
+        const slide = lightboxSlider.children[currentIndex];
+        const img = slide?.querySelector('img');
+        if (img) {
+          img.classList.add('swiping');
+          img.style.transform = `translateY(${diffY}px)`;
+          // Fade backdrop slightly as we swipe down
+          const bgOpacity = Math.max(0.1, 0.72 - Math.abs(diffY) / 600);
+          const blurAmount = Math.max(0, 18 - Math.abs(diffY) / 20);
+          lightbox.style.backgroundColor = `rgba(0,0,0,${bgOpacity})`;
+          lightbox.style.backdropFilter = `blur(${blurAmount}px)`;
+          lightbox.style.webkitBackdropFilter = `blur(${blurAmount}px)`;
+        }
+      } else {
+        // Horizontal swipe moves slider
+        lightboxSlider.style.transform = `translateX(${currentTranslate + diffX}px)`;
+      }
     }
   }
 }, { passive: true });
@@ -847,8 +929,44 @@ lightbox?.addEventListener('touchend', e => {
     if (zoomScale < 1.05) resetZoom();
   } else if (isDragging) {
     isDragging = false;
+    
     if (zoomScale > 1) {
       // Done panning
+    } else if (isSwipingVertical) {
+      const diffY = e.changedTouches[0].clientY - startY;
+      const slide = lightboxSlider.children[currentIndex];
+      const img = slide?.querySelector('img');
+      
+      if (img) {
+        img.classList.remove('swiping');
+        if (Math.abs(diffY) > 120) {
+          // Swipe to dismiss!
+          img.classList.add('dismissing');
+          img.style.transform = `translateY(${diffY > 0 ? '100vh' : '-100vh'})`;
+          img.style.opacity = '0';
+          setTimeout(() => {
+            closeLightbox();
+            img.style.transform = '';
+            img.style.opacity = '';
+            img.classList.remove('dismissing');
+            // Clean up custom backgrounds
+            lightbox.style.backgroundColor = '';
+            lightbox.style.backdropFilter = '';
+            lightbox.style.webkitBackdropFilter = '';
+          }, 250);
+        } else {
+          // Bounce back
+          img.classList.add('dismissing');
+          img.style.transform = '';
+          lightbox.style.backgroundColor = '';
+          lightbox.style.backdropFilter = '';
+          lightbox.style.webkitBackdropFilter = '';
+          setTimeout(() => {
+            img.classList.remove('dismissing');
+          }, 250);
+        }
+      }
+      isSwipingVertical = false;
     } else {
       lightboxSlider.style.transition = '';
       const diff = e.changedTouches[0].clientX - startX;
@@ -861,6 +979,7 @@ lightbox?.addEventListener('touchend', e => {
         }
       }
       updateLightbox();
+      isSwipingHorizontal = false;
     }
   }
 }, { passive: true });
@@ -1114,3 +1233,21 @@ async function handleRoute(url) {
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 initPage();
+
+// ─── Analytics Log Utility ────────────────────────────────────────────────────
+function logAnalyticsEvent(type, target) {
+  fetch('/api/analytics/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ event_type: type, event_target: target })
+  }).catch(() => {}); // Gracefully catch database or connection failures silently
+}
+
+// ─── Register PWA Service Worker ──────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('[ServiceWorker] Registered with scope:', reg.scope))
+      .catch(err => console.warn('[ServiceWorker] Registration failed:', err));
+  });
+}

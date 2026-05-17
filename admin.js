@@ -56,6 +56,7 @@ function showPanel(name) {
   if (name === 'messages') renderMessagesPanel();
   if (name === 'settings') renderSettingsPanel();
   if (name === 'sections') renderSectionsPanel();
+  if (name === 'analytics') renderAnalyticsPanel();
 }
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
@@ -623,19 +624,81 @@ fileInput.addEventListener('change', () => {
   fileInput.value = '';
 });
 
+// Resize and compress an image file to WebP using HTML5 Canvas
+async function compressImageToWebP(file, maxDimension = 2560, quality = 0.82) {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith('image/')) {
+      return resolve(file); // Return non-image files as-is
+    }
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        
+        // Compute scaled dimensions down to 2560px max
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            return resolve(file); // Fallback to original
+          }
+          // Preserve name but change extension to .webp
+          let name = file.name;
+          const dotIndex = name.lastIndexOf('.');
+          if (dotIndex !== -1) {
+            name = name.substring(0, dotIndex);
+          }
+          const webpFile = new File([blob], `${name}.webp`, {
+            type: 'image/webp',
+            lastModified: Date.now()
+          });
+          resolve(webpFile);
+        }, 'image/webp', quality);
+      };
+      img.onerror = () => resolve(file);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(file);
+    reader.readAsDataURL(file);
+  });
+}
+
 async function handleFiles(fileList) {
   if (!activeSection) return toast('Select a section tab first', 'warning');
   const files = [...fileList].slice(0, 10);
 
-  const formData = new FormData();
-  formData.append('section', activeSection);
-  for (const f of files) formData.append('images', f);
-
   uploadProgress.classList.add('visible');
-  uploadProgressText.textContent = `Uploading ${files.length} image${files.length > 1 ? 's' : ''}…`;
+  uploadProgressText.textContent = `Optimizing & compressing ${files.length} image${files.length > 1 ? 's' : ''}…`;
   uploadZone.style.pointerEvents = 'none';
 
   try {
+    // Compress and resize images client-side
+    const optimizedFiles = await Promise.all(
+      files.map(f => compressImageToWebP(f))
+    );
+
+    const formData = new FormData();
+    formData.append('section', activeSection);
+    for (const f of optimizedFiles) formData.append('images', f);
+
+    uploadProgressText.textContent = `Uploading ${optimizedFiles.length} optimized image${optimizedFiles.length > 1 ? 's' : ''}…`;
+
     const res  = await fetch('/api/admin/upload', {
       method: 'POST',
       credentials: 'include',
@@ -1236,6 +1299,141 @@ async function renderMessagesPanel() {
   } catch (err) {
     console.error('[renderMessagesPanel]', err);
     list.innerHTML = `<p class="text-error" style="padding:20px 0">Error: ${err.message}</p>`;
+  }
+}
+
+// ─── Analytics Panel Rendering ──────────────────────────────────────────────────
+async function renderAnalyticsPanel() {
+  const viewsEl = document.getElementById('stats-total-views');
+  const clicksEl = document.getElementById('stats-total-clicks');
+  const assetsEl = document.getElementById('stats-total-assets');
+  const chartEl = document.getElementById('stats-daily-chart');
+  const distEl = document.getElementById('stats-section-dist');
+  const rowsEl = document.getElementById('stats-top-images-rows');
+
+  // Show loading placeholders
+  viewsEl.textContent = '…';
+  clicksEl.textContent = '…';
+  assetsEl.textContent = '…';
+  chartEl.innerHTML = '<div class="chart-empty-state"><div class="spinner"></div></div>';
+  distEl.innerHTML = '<div class="chart-empty-state"><div class="spinner"></div></div>';
+  rowsEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:20px 0;"><div class="spinner" style="margin:0 auto;"></div></td></tr>`;
+
+  try {
+    // 1. Fetch analytics from backend
+    const res = await fetch('/api/admin/analytics', { credentials: 'include' });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      toast('Failed to load analytics data', 'error');
+      return;
+    }
+
+    if (data.warning === 'analytics_table_missing') {
+      const msg = 'Analytics database not present yet. Run 002_analytics.sql migration.';
+      chartEl.innerHTML = `<div class="chart-empty-state" style="color:var(--warning); text-align:center; padding:20px;">${msg}</div>`;
+      distEl.innerHTML = `<div class="chart-empty-state" style="color:var(--warning); text-align:center; padding:20px;">No telemetry database presence</div>`;
+      rowsEl.innerHTML = `<tr><td colspan="4" class="text-center" style="color:var(--warning); padding:20px 0;">Run SQL migrations to activate tracking.</td></tr>`;
+      viewsEl.textContent = '0';
+      clicksEl.textContent = '0';
+      assetsEl.textContent = '0';
+      return;
+    }
+
+    // 2. Fetch images for all sections to resolve top-clicked image thumbnails and names
+    const imagePromises = sections.map(s => 
+      fetch(`/api/admin/images?section=${s.slug}`, { credentials: 'include' })
+        .then(r => r.ok ? r.json() : [])
+        .catch(() => [])
+    );
+    const allSectionImagesResults = await Promise.all(imagePromises);
+    const imgMap = {};
+    allSectionImagesResults.flat().forEach(img => {
+      if (img && img.id) imgMap[img.id] = img;
+    });
+
+    // 3. Render Metric Cards
+    viewsEl.textContent = data.totalViews.toLocaleString();
+    clicksEl.textContent = data.totalClicks.toLocaleString();
+    assetsEl.textContent = data.topImages.length.toLocaleString();
+
+    // 4. Render Daily Trend Chart (Past 7 Days)
+    const dailyTrends = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD
+      const count = data.viewsByDate[dateStr] || 0;
+      
+      const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      dailyTrends.push({ date: label, count });
+    }
+
+    const maxVal = Math.max(...dailyTrends.map(d => d.count), 1);
+    chartEl.innerHTML = dailyTrends.map(d => {
+      const pct = d.count === 0 ? 3 : Math.round((d.count / maxVal) * 85);
+      return `
+        <div class="analytics-bar-col">
+          <span class="bar-col-value">${d.count}</span>
+          <div class="bar-col-fill" style="height:${pct}%;"></div>
+          <span class="bar-col-label">${d.date}</span>
+        </div>
+      `;
+    }).join('');
+
+    // 5. Render Section Interest Distribution
+    const sectionData = sections.map(s => {
+      const hits = data.sectionViews[s.slug] || 0;
+      return { label: s.nav_label || s.label || s.slug, hits };
+    }).sort((a, b) => b.hits - a.hits);
+
+    const maxHits = Math.max(...sectionData.map(s => s.hits), 1);
+    
+    if (sectionData.every(s => s.hits === 0)) {
+      distEl.innerHTML = `<div class="chart-empty-state">No section traffic tracked yet</div>`;
+    } else {
+      distEl.innerHTML = sectionData.map(s => {
+        const pct = Math.round((s.hits / maxHits) * 100);
+        return `
+          <div class="dist-row">
+            <span class="dist-label">${s.label}</span>
+            <div class="dist-bar-wrapper">
+              <div class="dist-bar" style="width:${pct}%;"></div>
+            </div>
+            <span class="dist-value">${s.hits} view${s.hits !== 1 ? 's' : ''}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // 6. Render Top Performing Images Rows
+    if (!data.topImages || data.topImages.length === 0) {
+      rowsEl.innerHTML = `<tr><td colspan="4" class="text-center text-muted" style="padding:20px 0;">No image magnifications recorded yet.</td></tr>`;
+    } else {
+      rowsEl.innerHTML = data.topImages.map((item, index) => {
+        const img = imgMap[item.target];
+        const previewUrl = img?.public_url_thumb || '/logo.png';
+        const titleText = img ? (img.alt_text || img.safe_filename || `Photo ID: ${img.id.slice(0,8)}`) : `Deleted Photo (ID: ${item.target.slice(0, 8)})`;
+        const clicksCount = item.clicks;
+        
+        return `
+          <tr>
+            <td class="table-rank">#${index + 1}</td>
+            <td>
+              <img class="table-preview-img" src="${previewUrl}" alt="">
+            </td>
+            <td class="table-title">${titleText}</td>
+            <td style="text-align:right; font-weight:600;">${clicksCount} hit${clicksCount !== 1 ? 's' : ''}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+  } catch (err) {
+    console.error('[renderAnalyticsPanel]', err);
+    toast('Error loading analytics widgets', 'error');
+    chartEl.innerHTML = `<div class="chart-empty-state text-error">Failed to populate chart</div>`;
+    distEl.innerHTML = `<div class="chart-empty-state text-error">Failed to populate sections</div>`;
+    rowsEl.innerHTML = `<tr><td colspan="4" class="text-center text-error" style="padding:20px 0;">Telemetry connection failure.</td></tr>`;
   }
 }
 

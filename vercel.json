@@ -26,6 +26,7 @@
     }
   ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/server.js" },
     { "source": "/", "destination": "/server.js" },
     { "source": "/about", "destination": "/server.js" },
     { "source": "/api/(.*)", "destination": "/server.js" },
