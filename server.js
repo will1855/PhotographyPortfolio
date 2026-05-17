@@ -99,8 +99,8 @@ async function getInjectedHtml(filename, siteConfig) {
   const performanceTags = `
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
-    <link rel="preload" href="/style.css" as="style">
-    <link rel="preload" href="/script.js" as="script">
+    <link rel="preload" href="/style.css?v=2" as="style">
+    <link rel="preload" href="/script.js?v=2" as="script">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
