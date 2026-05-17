@@ -211,6 +211,7 @@ function formatImageRow(row) {
     focal_point:     row.focal_point || 'center',
     public_url_full:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
     public_url_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
+    public_url_grid_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace('.webp', '-grid.webp')),
     // Include paths for admin use
     storage_path_full:  row.storage_path_full,
     storage_path_thumb: row.storage_path_thumb,
@@ -786,31 +787,48 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
         // Get image metadata (dimensions) before resizing
         const metadata = await sharp(file.buffer).metadata();
 
-        // Generate WebP thumbnail in memory
+        // Generate WebP standard thumbnail (1200px)
         const thumbBuffer = await sharp(file.buffer)
-          .resize({ width: 1200, withoutEnlargement: true }) // Adjusted to 1200px
-          .webp({ quality: 82 }) // Balanced quality
+          .resize({ width: 1200, withoutEnlargement: true })
+          .webp({ quality: 80 })
           .toBuffer();
 
-        // Upload full-res
+        // Generate WebP grid thumbnail (600px)
+        const gridThumbBuffer = await sharp(file.buffer)
+          .resize({ width: 600, withoutEnlargement: true })
+          .webp({ quality: 72 })
+          .toBuffer();
+
+        // Upload full-res with 1-year immutable caching
         const { error: fullUploadErr } = await supabase.storage
           .from(SUPABASE_IMAGES_BUCKET)
           .upload(fullPath, file.buffer, {
             contentType: file.mimetype,
-            cacheControl: '86400',
+            cacheControl: '31536000',
             upsert: false,
           });
         if (fullUploadErr) throw new Error(`Full upload failed: ${fullUploadErr.message}`);
 
-        // Upload thumbnail
+        // Upload standard thumbnail with 1-year immutable caching
         const { error: thumbUploadErr } = await supabase.storage
           .from(SUPABASE_THUMBS_BUCKET)
           .upload(thumbPath, thumbBuffer, {
             contentType: 'image/webp',
-            cacheControl: '86400',
+            cacheControl: '31536000',
             upsert: false,
           });
         if (thumbUploadErr) throw new Error(`Thumb upload failed: ${thumbUploadErr.message}`);
+
+        // Upload grid thumbnail with 1-year immutable caching
+        const gridThumbPath = thumbPath.replace('.webp', '-grid.webp');
+        const { error: gridUploadErr } = await supabase.storage
+          .from(SUPABASE_THUMBS_BUCKET)
+          .upload(gridThumbPath, gridThumbBuffer, {
+            contentType: 'image/webp',
+            cacheControl: '31536000',
+            upsert: false,
+          });
+        if (gridUploadErr) throw new Error(`Grid thumb upload failed: ${gridUploadErr.message}`);
 
         // Insert DB row
         const { data: imageRow, error: insertErr } = await supabase

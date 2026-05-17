@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'willdaviesphoto-cache-v2';
+const CACHE_NAME = 'willdaviesphoto-cache-v3';
 const STATIC_ASSETS = [
   '/',
   '/about',
@@ -51,10 +51,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Cache-First strategy for images (Supabase storage or local Fallback images)
+  // Cache-First strategy for thumbnails and static shell assets only.
+  // High-resolution original photos (/full/) are intentionally bypassed so they use
+  // standard browser HTTP cache, which the phone OS can automatically clean up when low on space.
   const isImageRequest = 
-    url.hostname.includes('supabase.co') && url.pathname.includes('/storage/v1/object/public/') ||
-    url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/);
+    (url.hostname.includes('supabase.co') && url.pathname.includes('/thumbs/')) ||
+    (!url.hostname.includes('supabase.co') && url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/));
 
   if (isImageRequest) {
     e.respondWith(

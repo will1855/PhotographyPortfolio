@@ -39,22 +39,41 @@ async function regenerate() {
 
       const buffer = Buffer.from(await fileData.arrayBuffer());
 
-      // 2. Generate new thumbnail
+      // 2. Generate new standard thumbnail (1200px)
       const thumbBuffer = await sharp(buffer)
         .resize({ width: 1200, withoutEnlargement: true })
-        .webp({ quality: 82 })
+        .webp({ quality: 80 })
         .toBuffer();
 
-      // 3. Upload (overwrite) thumbnail
+      // 3. Generate new grid thumbnail (600px)
+      const gridThumbBuffer = await sharp(buffer)
+        .resize({ width: 600, withoutEnlargement: true })
+        .webp({ quality: 72 })
+        .toBuffer();
+
+      // 4. Upload standard thumbnail (overwrite)
       const { error: uploadErr } = await supabase.storage
         .from(SUPABASE_THUMBS_BUCKET)
         .upload(img.storage_path_thumb, thumbBuffer, {
           contentType: 'image/webp',
           upsert: true,
+          cacheControl: '31536000',
         });
 
       if (uploadErr) throw uploadErr;
-      console.log(`  Done: ${img.storage_path_thumb}`);
+
+      // 5. Upload grid thumbnail (overwrite)
+      const gridThumbPath = img.storage_path_thumb.replace('.webp', '-grid.webp');
+      const { error: gridUploadErr } = await supabase.storage
+        .from(SUPABASE_THUMBS_BUCKET)
+        .upload(gridThumbPath, gridThumbBuffer, {
+          contentType: 'image/webp',
+          upsert: true,
+          cacheControl: '31536000',
+        });
+
+      if (gridUploadErr) throw gridUploadErr;
+      console.log(`  Done: ${img.storage_path_thumb} & ${gridThumbPath}`);
 
     } catch (err) {
       console.error(`  Failed: ${img.storage_path_full}`, err.message);

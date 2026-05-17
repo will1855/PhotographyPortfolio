@@ -535,7 +535,7 @@ function renderGallery() {
 
   images.forEach((imgData, index) => {
     const img    = document.createElement('img');
-    img.src      = imgData.public_url_thumb;
+    img.src      = imgData.public_url_grid_thumb || imgData.public_url_thumb;
     img.alt      = imgData.alt_text || imgData.title || '';
     img.loading  = index < 8 ? 'eager' : 'lazy';
     if (index < 8) img.fetchPriority = 'high';
