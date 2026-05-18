@@ -1,0 +1,46 @@
+name: CI E2E Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Install Playwright browsers and system dependencies
+      run: npx playwright install --with-deps chromium
+
+    - name: Run Playwright E2E Tests
+      env:
+        # Mock environment variables to satisfy startup validation cleanly
+        ADMIN_PASSWORD: mock_admin_password_test
+        SESSION_SECRET: mock_session_secret_for_jwt_auth_testing
+        SUPABASE_URL: https://mockproject.supabase.co
+        SUPABASE_SERVICE_ROLE_KEY: mock_supabase_service_role_key_secret
+        PORT: 3000
+        CI: true
+      run: npm test
+
+    - name: Upload Test Artifacts on Failure
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: playwright-report
+        path: playwright-report/
+        retention-days: 15
