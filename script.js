@@ -251,6 +251,7 @@ function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
+        if (window.innerWidth < 768) return; // Skip multi-MB background swaps on mobile
         if (img.dataset.fullLoaded === 'true') return;
         const full = new Image();
         if (i === heroIndex) full.fetchPriority = 'high';
@@ -290,6 +291,7 @@ function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
+        if (window.innerWidth < 768) return; // Skip multi-MB background swaps on mobile
         if (img.dataset.fullLoaded === 'true') return;
         const full = new Image();
         if (i === heroIndex) full.fetchPriority = 'high';
