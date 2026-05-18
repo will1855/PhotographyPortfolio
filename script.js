@@ -144,7 +144,19 @@ function setupNavPrefetch() {
             // Predictive preloading: Load the first 2 thumbnails of this section
             data.slice(0, 2).forEach(img => {
               const link = document.createElement('link');
-              link.rel = 'preload'; link.as = 'image'; link.href = img.public_url_thumb;
+              link.rel = 'preload';
+              link.as = 'image';
+              link.href = img.public_url_grid_thumb || img.public_url_thumb;
+              
+              if (img.public_url_grid_thumb && img.public_url_thumb) {
+                link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1200w`);
+                if (img.is_wide) {
+                  link.setAttribute('imagesizes', '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw');
+                } else {
+                  link.setAttribute('imagesizes', '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw');
+                }
+              }
+              
               link.setAttribute('fetchpriority', 'low'); // Lower priority for predictive preloading
               document.head.appendChild(link);
             });
@@ -597,7 +609,24 @@ function renderGallery() {
 
   images.forEach((imgData, index) => {
     const img    = document.createElement('img');
+    
+    // Set fallback source
     img.src      = imgData.public_url_grid_thumb || imgData.public_url_thumb;
+    
+    // Set srcset for modern responsive image loading
+    if (imgData.public_url_grid_thumb && imgData.public_url_thumb) {
+      img.srcset = `${imgData.public_url_grid_thumb} 600w, ${imgData.public_url_thumb} 1200w`;
+      
+      // Sizes attribute helps the browser know how large the image is laid out
+      if (imgData.is_wide) {
+        // Wide images: 2 columns on desktop/tablet (>700px), 1 column on mobile (<=700px)
+        img.sizes = '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw';
+      } else {
+        // Normal images: 1 column always (4 columns on >1000px, 3 columns on >700px, 2 columns on <=700px)
+        img.sizes = '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw';
+      }
+    }
+    
     img.alt      = imgData.alt_text || imgData.title || '';
     img.loading  = index < 8 ? 'eager' : 'lazy';
     if (index < 8) img.fetchPriority = 'high';
