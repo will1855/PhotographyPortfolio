@@ -8,7 +8,7 @@ A premium, full-stack photography portfolio meticulously engineered for near-ins
 
 ---
 
-## ─── 🏗️ Full-Stack System Architecture ───
+## ─── Full-Stack System Architecture ───
 
 The architecture leverages a hybrid model combining the performance benefits of **Server-Side Rendered (SSR) HTML structures** (for instant initial paint) with a **Single-Page Application (SPA) client-side router** (for instantaneous subsequent navigation).
 
@@ -48,7 +48,7 @@ graph TD
 
 ---
 
-## ─── ⚡ Key Engineering Achievements & Performance Optimizations ───
+## ─── Key Engineering Achievements & Performance Optimizations ───
 
 ### 1. Ultra-Low INP (Interaction to Next Paint) Touch Gestures
 To keep mobile swiping and pinch-to-zoom gestures feeling butter-smooth (under 15ms interaction response time), the full-screen lightbox separates rendering concerns completely:
@@ -74,7 +74,7 @@ To minimize disk read I/O bottlenecks in production, the server leverages an in-
 
 ---
 
-## ─── 🛡️ Security Engineering & Stateful Defense ───
+## ─── Security Engineering & Stateful Defense ───
 
 * **Stateless JWT Cookie Authentication**: Security-critical admin portal operations utilize state-resistant JWT validation. The token is issued to the browser in a secure, `HttpOnly`, `Secure` (in production), and `SameSite=Lax` cookie, making the credentials immune to client-side XSS stealing vectors.
 * **Constant-Time Thwarting of Timing Attacks**: Password authentication blocks timing analysis side-channels. A cryptographic constant-time comparison helper (`crypto.timingSafeEqual`) ensures that incorrect password lengths or mismatching prefixes evaluate in identical execution durations.
@@ -82,7 +82,7 @@ To minimize disk read I/O bottlenecks in production, the server leverages an in-
 
 ---
 
-## ─── 🧪 Automated Quality Assurance (E2E Testing) ───
+## ─── Automated Quality Assurance (E2E Testing) ───
 
 This repository includes a comprehensive end-to-end integration and security test suite using **Playwright**.
 
@@ -108,7 +108,7 @@ The local test runner will automatically spin up the Express server on port `300
 
 ---
 
-## ─── ⚙️ Continuous Integration (CI/CD) ───
+## ─── Continuous Integration (CI/CD) ───
 
 Every push or pull request to the `main` branch automatically triggers the continuous integration workflow in GitHub Actions (`.github/workflows/ci.yml`):
 1. Spins up an isolated `ubuntu-latest` runner.
