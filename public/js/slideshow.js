@@ -35,22 +35,17 @@ export function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
-        if (window.innerWidth < 768) {
-          // On mobile, the 1200px optimized WebP standard thumbnail is the perfect "reasonable size".
-          // We skip the multi-MB original swap to save bandwidth, but remove the loading blur immediately.
-          if (img.complete) {
+        // Remove the loading blur as soon as the standard thumbnail is complete
+        if (img.complete) {
+          img.classList.remove('loading');
+        } else {
+          img.onload = () => {
             img.classList.remove('loading');
-          } else {
-            img.onload = () => {
-              img.classList.remove('loading');
-            };
-          }
-          return;
+          };
         }
 
-        // On desktop, load the crystal-clear, full-resolution original photograph
+        // Load the crystal-clear, full-resolution original photograph in the background
         if (img.dataset.fullLoaded === 'true') {
-          img.classList.remove('loading');
           return;
         }
         const full = new Image();
@@ -58,7 +53,6 @@ export function initHeroSlideshow(heroes) {
         full.src = h.full_url;
         full.onload = () => {
           img.src = h.full_url;
-          img.classList.remove('loading');
           img.dataset.fullLoaded = 'true';
         };
       };
@@ -91,19 +85,17 @@ export function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
-        if (window.innerWidth < 768) {
-          if (img.complete) {
+        // Remove the loading blur as soon as the standard thumbnail is complete
+        if (img.complete) {
+          img.classList.remove('loading');
+        } else {
+          img.onload = () => {
             img.classList.remove('loading');
-          } else {
-            img.onload = () => {
-              img.classList.remove('loading');
-            };
-          }
-          return;
+          };
         }
 
+        // Load the crystal-clear, full-resolution original photograph in the background
         if (img.dataset.fullLoaded === 'true') {
-          img.classList.remove('loading');
           return;
         }
         const full = new Image();
@@ -111,7 +103,6 @@ export function initHeroSlideshow(heroes) {
         full.src = h.full_url;
         full.onload = () => {
           img.src = h.full_url;
-          img.classList.remove('loading');
           img.dataset.fullLoaded = 'true';
         };
       };
@@ -142,8 +133,8 @@ export function initHeroSlideshow(heroes) {
   if (heroSection) {
     if (state.heroObserver) state.heroObserver.disconnect();
     state.heroObserver = new IntersectionObserver((entries) => {
-      state.heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.95;
-    }, { threshold: [0.95] });
+      state.heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio >= 0.25;
+    }, { threshold: [0.25] });
     state.heroObserver.observe(heroSection);
   }
 }
