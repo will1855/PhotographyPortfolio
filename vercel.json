@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "server.js": {
-      "includeFiles": "{*.html,*.css,*.js,*.json,logo.png}"
+      "includeFiles": "{*.html,*.css,*.js,*.json,logo.png,js/**}"
     }
   },
   "headers": [

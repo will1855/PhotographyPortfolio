@@ -5,7 +5,7 @@ const STATIC_ASSETS = [
   '/',
   '/about',
   '/style.css?v=3',
-  '/script.js?v=3',
+  '/js/main.js?v=4',
   '/favicon.png?v=3',
   '/apple-touch-icon.png?v=3',
   '/logo.png'
