@@ -111,9 +111,17 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   const aboutTitle = siteConfig?.about_title || 'About';
   const desc = siteConfig?.about_text || 'Photography portfolio — archive and studies.';
   
+  // Construct canonical absolute URL for dynamic page metadata
+  const pageUrl = `https://willdaviesphoto.co.uk${filename === 'about.html' ? '/about' : (activeSectionSlug === 'archive' ? '/' : '/?section=' + encodeURIComponent(activeSectionSlug))}`;
+  
   // Basic SEO injection
   html = html.replace(/<title>.*?<\/title>/, `<title>${filename === 'about.html' ? aboutTitle + ' — ' : ''}${title}</title>`);
   html = html.replace(/<meta name="description" content=".*?">/, `<meta name="description" content="${desc.slice(0, 160)}">`);
+  
+  // Update pre-existing canonical, og:url, and twitter:url in the base HTML if they exist to match the final domain
+  html = html.replace(/<link rel="canonical" href=".*?">/, `<link rel="canonical" href="${pageUrl}">`);
+  html = html.replace(/<meta property="og:url" content=".*?">/g, `<meta property="og:url" content="${pageUrl}">`);
+  html = html.replace(/<meta property="twitter:url" content=".*?">/g, `<meta property="twitter:url" content="${pageUrl}">`);
   
   // OpenGraph & Performance injection
   const supabaseOrigin = new URL(SUPABASE_URL).origin;
@@ -127,7 +135,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     <meta property="og:title" content="${title}">
     <meta property="og:description" content="${desc.slice(0, 160)}">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="/">
+    <meta property="og:url" content="${pageUrl}">
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
   `;
   const criticalCss = `
@@ -619,9 +627,7 @@ app.post('/api/contact', async (req, res) => {
  */
 app.get('/sitemap.xml', async (req, res) => {
   try {
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    const host = req.get('host');
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = 'https://willdaviesphoto.co.uk';
 
     // Get all active visible sections
     const { data: sections } = await supabase
