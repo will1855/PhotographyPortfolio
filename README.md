@@ -4,7 +4,7 @@
 [![Node Engine](https://img.shields.io/badge/node-%3E%3D22.x-green.svg)](https://nodejs.org/)
 [![Testing Framework](https://img.shields.io/badge/testing-playwright-blue.svg)](https://playwright.dev/)
 
-A premium, full-stack photography portfolio meticulously engineered for near-instantaneous page paint (FCP), minimal layout shifting (CLS), elite responsiveness, and military-grade security. This repository serves as a showcase for production-ready frontend modularization, caching systems, stateless credential management, and automated continuous integration pipeline execution.
+A custom photography portfolio built with Express, Supabase Storage/PostgreSQL, responsive image loading, an admin upload/order system, contact form handling, and Playwright CI tests. This repository serves as a showcase for production-ready frontend modularization, caching systems, stateless credential management, and automated continuous integration pipeline execution.
 
 ---
 
