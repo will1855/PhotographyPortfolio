@@ -73,7 +73,7 @@ try {
 
 // Serve static public files - MOVE TO TOP
 const STATIC_CACHE = { maxAge: '1y', immutable: true };
-app.use(express.static(path.join(__dirname), { index: false, ...STATIC_CACHE }));
+app.use(express.static(path.join(__dirname, 'public'), { index: false, ...STATIC_CACHE }));
 // Legacy: serve local images/thumbs if they still exist (migration fallback)
 app.use('/images', express.static(path.join(__dirname, 'images'), STATIC_CACHE));
 app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs'), STATIC_CACHE));
