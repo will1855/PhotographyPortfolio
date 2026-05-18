@@ -91,9 +91,21 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+const templateCache = new Map();
+
 async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archive') {
   const filePath = path.join(__dirname, filename);
-  let html = await fs.promises.readFile(filePath, 'utf8');
+  let html;
+  
+  if (IS_PROD) {
+    if (!templateCache.has(filename)) {
+      const content = await fs.promises.readFile(filePath, 'utf8');
+      templateCache.set(filename, content);
+    }
+    html = templateCache.get(filename);
+  } else {
+    html = await fs.promises.readFile(filePath, 'utf8');
+  }
   
   const title = siteConfig?.site_title || 'Will Davies';
   const aboutTitle = siteConfig?.about_title || 'About';
