@@ -225,65 +225,94 @@ function applyConfig(config) {
 
 function initHeroSlideshow(heroes) {
   if (!heroMedia) return;
-  heroMedia.innerHTML = '';
-  heroSlides = [];
   
   // Use server-provided index if available for consistency with preload
   if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number') {
     heroIndex = window.INITIAL_DATA.initial_hero_index;
-    // Note: We don't delete it here because initHeroSlideshow might be called
-    // multiple times if initPage is re-run (though we should avoid it).
-    // Actually, delete it to ensure future navigations are random.
     delete window.INITIAL_DATA.initial_hero_index;
   } else {
     heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
   }
 
-  heroes.forEach((h, i) => {
-    const div = document.createElement('div');
-    div.className = 'hero-slide';
-    const img = document.createElement('img');
-    img.src = h.thumb_url; // Load optimized thumb first
-    img.classList.add('loading');
-    img.alt = 'Hero image';
-    if (h.focal_point && h.focal_point !== 'center') {
-      img.style.setProperty('--mobile-focal-point', h.focal_point);
-    }
-    div.appendChild(img);
-    heroMedia.appendChild(div);
-    heroSlides.push(div);
+  const existingSlides = heroMedia.querySelectorAll('.hero-slide');
+  if (existingSlides.length === heroes.length) {
+    // 1. Re-use server pre-rendered slides!
+    heroSlides = Array.from(existingSlides);
+    
+    heroes.forEach((h, i) => {
+      const div = heroSlides[i];
+      const img = div.querySelector('img');
+      
+      // If inactive slide, set src now (deferred from server load)
+      if (i !== heroIndex) {
+        img.src = h.thumb_url;
+      }
+      
+      img.dataset.fullUrl = h.full_url;
 
-    // Attach full-res URL for on-demand loading
-    img.dataset.fullUrl = h.full_url;
-
-    const loadFullRes = () => {
-      if (img.dataset.fullLoaded === 'true') return;
-      const full = new Image();
-      if (i === heroIndex) full.fetchPriority = 'high';
-      full.src = h.full_url;
-      full.onload = () => {
-        img.src = h.full_url;
-        img.classList.remove('loading');
-        img.dataset.fullLoaded = 'true';
+      const loadFullRes = () => {
+        if (img.dataset.fullLoaded === 'true') return;
+        const full = new Image();
+        if (i === heroIndex) full.fetchPriority = 'high';
+        full.src = h.full_url;
+        full.onload = () => {
+          img.src = h.full_url;
+          img.classList.remove('loading');
+          img.dataset.fullLoaded = 'true';
+        };
       };
-    };
 
-    // Store reference to load function for later use
-    div.loadFullRes = loadFullRes;
+      div.loadFullRes = loadFullRes;
 
-    if (i === heroIndex) {
-      loadFullRes();
-    }
-  });
-
-  // Fade in first random slide after a tiny delay to ensure transition triggers.
-  // We use a double requestAnimationFrame to ensure the elements are painted 
-  // at opacity:0 before we trigger the transition to opacity:1.
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      if (heroSlides[heroIndex]) heroSlides[heroIndex].classList.add('active');
+      if (i === heroIndex) {
+        loadFullRes();
+      }
     });
-  });
+  } else {
+    // 2. Fallback: recreate slides from scratch
+    heroMedia.innerHTML = '';
+    heroSlides = [];
+    
+    heroes.forEach((h, i) => {
+      const div = document.createElement('div');
+      div.className = 'hero-slide';
+      const img = document.createElement('img');
+      img.src = h.thumb_url;
+      img.classList.add('loading');
+      img.alt = 'Hero image';
+      if (h.focal_point && h.focal_point !== 'center') {
+        img.style.setProperty('--mobile-focal-point', h.focal_point);
+      }
+      div.appendChild(img);
+      heroMedia.appendChild(div);
+      heroSlides.push(div);
+
+      img.dataset.fullUrl = h.full_url;
+
+      const loadFullRes = () => {
+        if (img.dataset.fullLoaded === 'true') return;
+        const full = new Image();
+        if (i === heroIndex) full.fetchPriority = 'high';
+        full.src = h.full_url;
+        full.onload = () => {
+          img.src = h.full_url;
+          img.classList.remove('loading');
+          img.dataset.fullLoaded = 'true';
+        };
+      };
+
+      div.loadFullRes = loadFullRes;
+
+      if (i === heroIndex) {
+        loadFullRes();
+      }
+    });
+  }
+
+  // Ensure active slide is shown (already active from server, but double check or requestAnimationFrame it)
+  if (heroSlides[heroIndex]) {
+    heroSlides[heroIndex].classList.add('active');
+  }
 
   if (heroSlides.length > 1) {
     if (heroTimer) clearInterval(heroTimer);
@@ -297,7 +326,6 @@ function initHeroSlideshow(heroes) {
     if (heroObserver) heroObserver.disconnect();
     heroObserver = new IntersectionObserver((entries) => {
       // Pause slideshow if hero is not almost fully in view
-      // This stops any crossfading while the user is scrolled down to the gallery
       heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio > 0.95;
     }, { threshold: [0.95] });
     heroObserver.observe(heroSection);

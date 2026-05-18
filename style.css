@@ -42,12 +42,7 @@ main {
   background: var(--bg);
 }
 
-body.preload .hero, 
-body.preload main, 
-body.preload .about-page, 
-body.preload footer {
-  opacity: 0;
-}
+
 
 body.preload * {
   transition: none !important;

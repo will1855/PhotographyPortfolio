@@ -82,7 +82,16 @@ app.use('/thumbs',  express.static(path.join(__dirname, 'thumbs'), STATIC_CACHE)
 // SEO & Template Injection
 // =============================================================================
 
-async function getInjectedHtml(filename, siteConfig) {
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archive') {
   const filePath = path.join(__dirname, filename);
   let html = await fs.promises.readFile(filePath, 'utf8');
   
@@ -99,8 +108,8 @@ async function getInjectedHtml(filename, siteConfig) {
   const performanceTags = `
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
-    <link rel="preload" href="/style.css?v=2" as="style">
-    <link rel="preload" href="/script.js?v=2" as="script">
+    <link rel="preload" href="/style.css?v=3" as="style">
+    <link rel="preload" href="/script.js?v=3" as="script">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -123,17 +132,59 @@ async function getInjectedHtml(filename, siteConfig) {
   `;
   html = html.replace('</head>', `${criticalCss}\n${performanceTags}\n${ogTags}\n</head>`);
   
+  const sections = siteConfig?.sections || [];
+  const isAboutPage = filename === 'about.html';
+
+  // 1. Dynamic pre-rendering: Site Navigation
+  let navHtml = '';
+  for (const s of sections) {
+    const isActive = !isAboutPage && s.slug === activeSectionSlug;
+    navHtml += `<a href="/?section=${encodeURIComponent(s.slug)}"${isActive ? ' class="active"' : ''}>${s.nav_label || s.label}</a>`;
+  }
+  const isAboutActive = isAboutPage;
+  navHtml += `<a href="/about"${isAboutActive ? ' class="active"' : ''}>${aboutTitle}</a>`;
+  html = html.replace(/<nav id="site-nav">[\s\S]*?<\/nav>/, `<nav id="site-nav" data-built="true">${navHtml}</nav>`);
+
+  // 2. Dynamic pre-rendering: Hero slideshow, kicker, link (index.html only)
+  const sectionConfig = sections.find(s => s.slug === activeSectionSlug);
+  const heroes = sectionConfig?.heroes || [];
+  const initialHeroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+
+  if (siteConfig) {
+    siteConfig.initial_hero_index = initialHeroIndex;
+  }
+
+  if (filename === 'index.html' && sectionConfig) {
+    let heroMediaHtml = '';
+    heroes.forEach((h, i) => {
+      const isActive = i === initialHeroIndex;
+      const focalPointStyle = h.focal_point && h.focal_point !== 'center' ? ` style="--mobile-focal-point: ${h.focal_point};"` : '';
+      
+      if (isActive) {
+        heroMediaHtml += `<div class="hero-slide active">
+          <img src="${h.thumb_url}" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+        </div>`;
+      } else {
+        heroMediaHtml += `<div class="hero-slide">
+          <img data-src="${h.thumb_url}" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+        </div>`;
+      }
+    });
+
+    const kickerText = sectionConfig.hero_kicker || sectionConfig.label || '';
+    const linkText = sectionConfig.hero_link_text || 'View';
+
+    html = html.replace(/<div class="hero-media" id="hero-media">[\s\S]*?<\/div>/, `<div class="hero-media" id="hero-media">${heroMediaHtml}</div>`);
+    html = html.replace(/<p class="hero-kicker" id="hero-kicker">[\s\S]*?<\/p>/, `<p class="hero-kicker" id="hero-kicker">${escapeHtml(kickerText)}</p>`);
+    html = html.replace(/<a href="#gallery" class="hero-link" id="hero-link">[\s\S]*?<\/a>/, `<a href="#gallery" class="hero-link" id="hero-link">${escapeHtml(linkText)}</a>`);
+  }
+  
   // Initial Data injection
   if (siteConfig) {
-    // Pick initial hero index on the server for preloading
-    const heroes = siteConfig.heroes || [];
-    const initialHeroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
-    siteConfig.initial_hero_index = initialHeroIndex;
-
     const dataScript = `\n<script>window.INITIAL_DATA = ${JSON.stringify(siteConfig)};</script>`;
     html = html.replace('</head>', `${dataScript}\n</head>`);
 
-    // Preload the first hero's thumbnail for instant display
+    // Preload the active hero's thumbnail for instant display
     if (heroes[initialHeroIndex]) {
       const preloadTag = `<link rel="preload" as="image" href="${heroes[initialHeroIndex].thumb_url}" fetchpriority="high">`;
       html = html.replace('</head>', `${preloadTag}\n</head>`);
@@ -150,7 +201,7 @@ app.get('/', async (req, res) => {
     const config = await getSiteConfigData();
     // Also pre-fetch images for the initial section
     config.initial_images = await getSectionImagesData(slug);
-    const html = await getInjectedHtml('index.html', config);
+    const html = await getInjectedHtml('index.html', config, slug);
     res.send(html);
   } catch (err) {
     res.sendFile(path.join(__dirname, 'index.html'));
