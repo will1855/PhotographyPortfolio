@@ -251,8 +251,24 @@ function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
-        if (window.innerWidth < 768) return; // Skip multi-MB background swaps on mobile
-        if (img.dataset.fullLoaded === 'true') return;
+        if (window.innerWidth < 768) {
+          // On mobile, the 1200px optimized WebP standard thumbnail is the perfect "reasonable size".
+          // We skip the multi-MB original swap to save bandwidth, but remove the loading blur immediately.
+          if (img.complete) {
+            img.classList.remove('loading');
+          } else {
+            img.onload = () => {
+              img.classList.remove('loading');
+            };
+          }
+          return;
+        }
+
+        // On desktop, load the crystal-clear, full-resolution original photograph
+        if (img.dataset.fullLoaded === 'true') {
+          img.classList.remove('loading');
+          return;
+        }
         const full = new Image();
         if (i === heroIndex) full.fetchPriority = 'high';
         full.src = h.full_url;
@@ -291,8 +307,24 @@ function initHeroSlideshow(heroes) {
       img.dataset.fullUrl = h.full_url;
 
       const loadFullRes = () => {
-        if (window.innerWidth < 768) return; // Skip multi-MB background swaps on mobile
-        if (img.dataset.fullLoaded === 'true') return;
+        if (window.innerWidth < 768) {
+          // On mobile, the 1200px optimized WebP standard thumbnail is the perfect "reasonable size".
+          // We skip the multi-MB original swap to save bandwidth, but remove the loading blur immediately.
+          if (img.complete) {
+            img.classList.remove('loading');
+          } else {
+            img.onload = () => {
+              img.classList.remove('loading');
+            };
+          }
+          return;
+        }
+
+        // On desktop, load the crystal-clear, full-resolution original photograph
+        if (img.dataset.fullLoaded === 'true') {
+          img.classList.remove('loading');
+          return;
+        }
         const full = new Image();
         if (i === heroIndex) full.fetchPriority = 'high';
         full.src = h.full_url;
