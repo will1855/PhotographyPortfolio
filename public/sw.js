@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'willdaviesphoto-cache-v4';
+const CACHE_NAME = 'willdaviesphoto-cache-v5';
 const STATIC_ASSETS = [
   '/',
   '/about',
@@ -11,19 +11,19 @@ const STATIC_ASSETS = [
   '/logo.png'
 ];
 
-// 1. Install event: Cache critical UI shell assets
+// 1. Install event: Cache critical UI shell assets & force immediate activation
 self.addEventListener('install', (e) => {
+  self.skipWaiting(); // Safari optimization: force new service worker to install immediately
   e.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
         console.log('[ServiceWorker] Caching app shell...');
         return cache.addAll(STATIC_ASSETS);
       })
-      .then(() => self.skipWaiting())
   );
 });
 
-// 2. Activate event: Clear legacy caches
+// 2. Activate event: Clear legacy caches & claim control immediately
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
@@ -35,7 +35,7 @@ self.addEventListener('activate', (e) => {
           }
         })
       );
-    }).then(() => self.clients.claim())
+    }).then(() => self.clients.claim()) // Claim active clients immediately to apply updates on first load
   );
 });
 
