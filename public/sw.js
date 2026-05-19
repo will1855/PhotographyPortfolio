@@ -67,8 +67,12 @@ self.addEventListener('fetch', (e) => {
           if (cachedResponse) return cachedResponse;
 
           return fetch(e.request).then((networkResponse) => {
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(e.request, networkResponse.clone());
+            if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected) {
+              const contentType = networkResponse.headers.get('content-type');
+              // Only cache actual images to prevent caching portal login/block pages
+              if (contentType && (contentType.includes('image/') || contentType.includes('application/octet-stream'))) {
+                cache.put(e.request, networkResponse.clone());
+              }
             }
             return networkResponse;
           }).catch(() => {
@@ -85,8 +89,20 @@ self.addEventListener('fetch', (e) => {
     caches.open(CACHE_NAME).then((cache) => {
       return cache.match(e.request).then((cachedResponse) => {
         const fetchPromise = fetch(e.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            cache.put(e.request, networkResponse.clone());
+          if (networkResponse && networkResponse.status === 200 && !networkResponse.redirected) {
+            const contentType = networkResponse.headers.get('content-type');
+            const isHtmlRoute = url.pathname === '/' || url.pathname === '/about';
+            
+            // Failsafe validation: ensure we do not cache portal HTML in place of styles/scripts
+            if (isHtmlRoute) {
+              if (contentType && contentType.includes('text/html')) {
+                cache.put(e.request, networkResponse.clone());
+              }
+            } else {
+              if (contentType && !contentType.includes('text/html')) {
+                cache.put(e.request, networkResponse.clone());
+              }
+            }
           }
           return networkResponse;
         }).catch(() => {
