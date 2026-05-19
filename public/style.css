@@ -446,7 +446,7 @@ nav a.active { color: var(--text); }
 
 @media (max-width: 700px) {
   header { padding: 0 14px; }
-  .hero-overlay { padding: 0 14px 22px; }
+  .hero-overlay { padding: 0 16px 52px; }
   nav { gap: 12px; }
   .about-content { padding: calc(var(--header-h) + 32px) 14px 60px; }
 }
