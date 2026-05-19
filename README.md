@@ -4,7 +4,7 @@
 [![Node Engine](https://img.shields.io/badge/node-%3E%3D22.x-green.svg)](https://nodejs.org/)
 [![Testing Framework](https://img.shields.io/badge/testing-playwright-blue.svg)](https://playwright.dev/)
 
-A personal photography portfolio built to present my work in a clean, image-led format, serving as a full-stack technical case study.
+A personal photography portfolio built to present my work in a clean, image-led format. I also built a small admin system to manage images and site content without editing the code directly.
 
 Live site: https://willdaviesphoto.co.uk
 
@@ -31,7 +31,7 @@ This is my personal photography portfolio site. I wanted the site to feel simple
 
 ---
 
-## System Architecture
+## System Architecture (How it works)
 
 The site combines server-rendered HTML structures (for fast first paint times) with an in-page client router (for fast subsequent page switches without full reloading).
 
@@ -71,7 +71,7 @@ graph TD
 
 ---
 
-## Technical Details & Optimizations
+## Technical Details
 
 ### 1. Touch Gestures & Lightbox Performance
 To keep mobile swipes and zoom gestures highly responsive, the full-screen lightbox separates rendering and data loading:
