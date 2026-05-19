@@ -210,7 +210,7 @@ export function renderGallery() {
     
     // Set srcset for modern responsive image loading
     if (imgData.public_url_grid_thumb && imgData.public_url_thumb) {
-      img.srcset = `${imgData.public_url_grid_thumb} 600w, ${imgData.public_url_thumb} 1200w`;
+      img.srcset = `${imgData.public_url_grid_thumb} 600w, ${imgData.public_url_thumb} 1600w`;
       
       // Sizes attribute helps the browser know how large the image is laid out
       if (imgData.is_wide) {

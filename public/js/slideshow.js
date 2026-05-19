@@ -43,7 +43,7 @@ export function initHeroSlideshow(heroes) {
       const loadSlideImage = () => {
         if (!img.src || img.src === window.location.href || img.src === '') {
           const srcVal = img.dataset.src || h.thumb_url;
-          const srcSetVal = img.dataset.srcset || (h.grid_thumb_url ? `${h.grid_thumb_url} 600w, ${h.thumb_url} 1200w` : null);
+          const srcSetVal = img.dataset.srcset || (h.grid_thumb_url ? `${h.grid_thumb_url} 600w, ${h.thumb_url} 1600w` : null);
           
           if (srcSetVal) {
             img.srcset = srcSetVal;
@@ -113,7 +113,7 @@ export function initHeroSlideshow(heroes) {
       // Store standard properties on dataset to prevent immediate auto-download (Rule 8)
       img.dataset.src = h.thumb_url;
       const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9 fallback
-      img.dataset.srcset = `${gridThumb} 600w, ${h.thumb_url} 1200w`;
+      img.dataset.srcset = `${gridThumb} 600w, ${h.thumb_url} 1600w`;
       img.sizes = '100vw';
       
       // Pure JS error fallback (Rule 6: CSP & security compliant, no inline onerror)

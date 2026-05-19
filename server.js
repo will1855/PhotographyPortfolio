@@ -213,8 +213,8 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       const isActive = i === initialHeroIndex;
       const focalPointStyle = h.focal_point && h.focal_point !== 'center' ? ` style="--mobile-focal-point: ${h.focal_point};"` : '';
       
-      const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9: fallback to 1200px if grid thumb missing
-      const srcSetAttr = ` srcset="${gridThumb} 600w, ${h.thumb_url} 1200w" sizes="100vw"`;
+      const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9: fallback if grid thumb missing
+      const srcSetAttr = ` srcset="${gridThumb} 600w, ${h.thumb_url} 1600w" sizes="100vw"`;
 
       if (isActive) {
         heroMediaHtml += `<div class="hero-slide active">
@@ -223,7 +223,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       } else {
         // Rule 8: Lazy-loading inactive slides (data-srcset/data-src) to prevent instant download
         heroMediaHtml += `<div class="hero-slide">
-          <img data-src="${h.thumb_url}" data-srcset="${gridThumb} 600w, ${h.thumb_url} 1200w" sizes="100vw" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+          <img data-src="${h.thumb_url}" data-srcset="${gridThumb} 600w, ${h.thumb_url} 1600w" sizes="100vw" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
         </div>`;
       }
     });
@@ -245,7 +245,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     if (heroes[initialHeroIndex]) {
       const activeHero = heroes[initialHeroIndex];
       const gridThumb = activeHero.grid_thumb_url || activeHero.thumb_url; // Rule 9 fallback
-      const preloadTag = `<link rel="preload" as="image" href="${activeHero.thumb_url}" imagesrcset="${gridThumb} 600w, ${activeHero.thumb_url} 1200w" imagesizes="100vw" fetchpriority="high">`;
+      const preloadTag = `<link rel="preload" as="image" href="${activeHero.thumb_url}" imagesrcset="${gridThumb} 600w, ${activeHero.thumb_url} 1600w" imagesizes="100vw" fetchpriority="high">`;
       html = html.replace('</head>', `${preloadTag}\n</head>`);
     }
   }
@@ -957,9 +957,9 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
         // Get image metadata (dimensions) before resizing
         const metadata = await sharp(file.buffer).metadata();
 
-        // Generate WebP standard thumbnail (1200px)
+        // Generate WebP standard thumbnail (1600px)
         const thumbBuffer = await sharp(file.buffer)
-          .resize({ width: 1200, withoutEnlargement: true })
+          .resize({ width: 1600, withoutEnlargement: true })
           .webp({ quality: 80 })
           .toBuffer();
 

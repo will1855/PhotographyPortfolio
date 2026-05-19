@@ -115,7 +115,7 @@ function setupNavPrefetch() {
               link.href = img.public_url_grid_thumb || img.public_url_thumb;
               
               if (img.public_url_grid_thumb && img.public_url_thumb) {
-                link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1200w`);
+                link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1600w`);
                 if (img.is_wide) {
                   link.setAttribute('imagesizes', '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw');
                 } else {

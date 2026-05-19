@@ -39,9 +39,9 @@ async function regenerate() {
 
       const buffer = Buffer.from(await fileData.arrayBuffer());
 
-      // 2. Generate new standard thumbnail (1200px)
+      // 2. Generate new standard thumbnail (1600px)
       const thumbBuffer = await sharp(buffer)
-        .resize({ width: 1200, withoutEnlargement: true })
+        .resize({ width: 1600, withoutEnlargement: true })
         .webp({ quality: 80 })
         .toBuffer();
 
