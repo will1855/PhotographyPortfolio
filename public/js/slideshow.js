@@ -27,14 +27,36 @@ export function initHeroSlideshow(heroes) {
       const div = state.heroSlides[i];
       const img = div.querySelector('img');
       
-      // If inactive slide, set src now (deferred from server load to save initial FCP payload)
-      if (i !== state.heroIndex) {
-        img.src = h.thumb_url;
-      }
-      
       img.dataset.fullUrl = h.full_url;
 
+      // Pure JS error fallback (Rule 6: CSP & security compliant, no inline onerror)
+      const handleImgError = () => {
+        img.removeAttribute('srcset');
+        img.src = h.thumb_url;
+      };
+      img.addEventListener('error', handleImgError, { once: true });
+      if (img.complete && img.naturalWidth === 0) {
+        handleImgError();
+      }
+
+      // Helper function to load the standard/srcset slide image (Rule 8: lazy load)
+      const loadSlideImage = () => {
+        if (!img.src || img.src === window.location.href || img.src === '') {
+          const srcVal = img.dataset.src || h.thumb_url;
+          const srcSetVal = img.dataset.srcset || (h.grid_thumb_url ? `${h.grid_thumb_url} 600w, ${h.thumb_url} 1200w` : null);
+          
+          if (srcSetVal) {
+            img.srcset = srcSetVal;
+            img.sizes = '100vw';
+          }
+          img.src = srcVal;
+        }
+      };
+
       const loadFullRes = () => {
+        // Ensure standard thumbnail is loaded
+        loadSlideImage();
+
         // Remove the loading blur as soon as the standard thumbnail is complete
         if (img.complete) {
           img.classList.remove('loading');
@@ -44,22 +66,32 @@ export function initHeroSlideshow(heroes) {
           };
         }
 
-        // Load the crystal-clear, full-resolution original photograph in the background
+        // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          return;
+        }
+
+        // Load the crystal-clear, full-resolution original photograph in the background (desktop only, Rule 1 & 6)
         if (img.dataset.fullLoaded === 'true') {
           return;
         }
         const full = new Image();
         if (i === state.heroIndex) full.fetchPriority = 'high';
-        full.src = h.full_url;
         full.onload = () => {
+          img.removeAttribute('srcset');
+          img.removeAttribute('sizes');
           img.src = h.full_url;
           img.dataset.fullLoaded = 'true';
         };
+        full.src = h.full_url;
       };
 
+      div.loadSlideImage = loadSlideImage;
       div.loadFullRes = loadFullRes;
 
       if (i === state.heroIndex) {
+        loadSlideImage();
         loadFullRes();
       }
     });
@@ -72,20 +104,41 @@ export function initHeroSlideshow(heroes) {
       const div = document.createElement('div');
       div.className = 'hero-slide';
       const img = document.createElement('img');
-      img.src = h.thumb_url;
       img.classList.add('loading');
       img.alt = 'Hero image';
       if (h.focal_point && h.focal_point !== 'center') {
         img.style.setProperty('--mobile-focal-point', h.focal_point);
       }
+      
+      // Store standard properties on dataset to prevent immediate auto-download (Rule 8)
+      img.dataset.src = h.thumb_url;
+      const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9 fallback
+      img.dataset.srcset = `${gridThumb} 600w, ${h.thumb_url} 1200w`;
+      img.sizes = '100vw';
+      
+      // Pure JS error fallback (Rule 6: CSP & security compliant, no inline onerror)
+      const handleImgError = () => {
+        img.removeAttribute('srcset');
+        img.src = h.thumb_url;
+      };
+      img.addEventListener('error', handleImgError, { once: true });
+
       div.appendChild(img);
       dom.heroMedia.appendChild(div);
       state.heroSlides.push(div);
 
       img.dataset.fullUrl = h.full_url;
 
+      const loadSlideImage = () => {
+        if (!img.src || img.src === window.location.href || img.src === '') {
+          img.srcset = img.dataset.srcset;
+          img.src = img.dataset.src;
+        }
+      };
+
       const loadFullRes = () => {
-        // Remove the loading blur as soon as the standard thumbnail is complete
+        loadSlideImage();
+
         if (img.complete) {
           img.classList.remove('loading');
         } else {
@@ -94,22 +147,31 @@ export function initHeroSlideshow(heroes) {
           };
         }
 
-        // Load the crystal-clear, full-resolution original photograph in the background
+        // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
+        const isMobile = window.innerWidth <= 768;
+        if (isMobile) {
+          return;
+        }
+
         if (img.dataset.fullLoaded === 'true') {
           return;
         }
         const full = new Image();
         if (i === state.heroIndex) full.fetchPriority = 'high';
-        full.src = h.full_url;
         full.onload = () => {
+          img.removeAttribute('srcset');
+          img.removeAttribute('sizes');
           img.src = h.full_url;
           img.dataset.fullLoaded = 'true';
         };
+        full.src = h.full_url;
       };
 
+      div.loadSlideImage = loadSlideImage;
       div.loadFullRes = loadFullRes;
 
       if (i === state.heroIndex) {
+        loadSlideImage();
         loadFullRes();
       }
     });
@@ -156,10 +218,27 @@ export function nextHeroSlide() {
 
   state.heroIndex = (state.heroIndex + 1) % state.heroSlides.length;
   
-  // Trigger full-res load for the incoming slide
-  if (state.heroSlides[state.heroIndex].loadFullRes) {
-    state.heroSlides[state.heroIndex].loadFullRes();
+  const nextSlide = state.heroSlides[state.heroIndex];
+
+  // Load standard thumbnail (and srcset) for the incoming active slide
+  if (nextSlide.loadSlideImage) {
+    nextSlide.loadSlideImage();
+  }
+
+  // Trigger full-res load for the incoming slide (desktop only)
+  if (nextSlide.loadFullRes) {
+    nextSlide.loadFullRes();
   }
   
-  state.heroSlides[state.heroIndex].classList.add('active');
+  nextSlide.classList.add('active');
+
+  // Predictive Preloading: Load standard image for the slide AFTER the next one
+  // so it is cached and ready before the transition (Rule 8)
+  const preloadIndex = (state.heroIndex + 1) % state.heroSlides.length;
+  const preloadSlide = state.heroSlides[preloadIndex];
+  if (preloadSlide && preloadSlide.loadSlideImage) {
+    preloadSlide.loadSlideImage();
+  }
 }
+
+

@@ -180,13 +180,17 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       const isActive = i === initialHeroIndex;
       const focalPointStyle = h.focal_point && h.focal_point !== 'center' ? ` style="--mobile-focal-point: ${h.focal_point};"` : '';
       
+      const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9: fallback to 1200px if grid thumb missing
+      const srcSetAttr = ` srcset="${gridThumb} 600w, ${h.thumb_url} 1200w" sizes="100vw"`;
+
       if (isActive) {
         heroMediaHtml += `<div class="hero-slide active">
-          <img src="${h.thumb_url}" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+          <img src="${h.thumb_url}"${srcSetAttr} class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
         </div>`;
       } else {
+        // Rule 8: Lazy-loading inactive slides (data-srcset/data-src) to prevent instant download
         heroMediaHtml += `<div class="hero-slide">
-          <img data-src="${h.thumb_url}" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+          <img data-src="${h.thumb_url}" data-srcset="${gridThumb} 600w, ${h.thumb_url} 1200w" sizes="100vw" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
         </div>`;
       }
     });
@@ -206,7 +210,9 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
 
     // Preload the active hero's thumbnail for instant display
     if (heroes[initialHeroIndex]) {
-      const preloadTag = `<link rel="preload" as="image" href="${heroes[initialHeroIndex].thumb_url}" fetchpriority="high">`;
+      const activeHero = heroes[initialHeroIndex];
+      const gridThumb = activeHero.grid_thumb_url || activeHero.thumb_url; // Rule 9 fallback
+      const preloadTag = `<link rel="preload" as="image" href="${activeHero.thumb_url}" imagesrcset="${gridThumb} 600w, ${activeHero.thumb_url} 1200w" imagesizes="100vw" fetchpriority="high">`;
       html = html.replace('</head>', `${preloadTag}\n</head>`);
     }
   }
@@ -222,6 +228,8 @@ app.get('/', async (req, res) => {
     // Also pre-fetch images for the initial section
     config.initial_images = await getSectionImagesData(slug);
     const html = await getInjectedHtml('index.html', config, slug);
+    // Vercel Edge caching - approved via Rule 10
+    res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
     res.send(html);
   } catch (err) {
     res.sendFile(path.join(__dirname, 'index.html'));
@@ -232,10 +240,17 @@ app.get('/about', async (req, res) => {
   try {
     const config = await getSiteConfigData();
     const html = await getInjectedHtml('about.html', config);
+    // Vercel Edge caching - approved via Rule 10
+    res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
     res.send(html);
   } catch (err) {
     res.sendFile(path.join(__dirname, 'about.html'));
   }
+});
+
+// Silences local Speed Insights 404 console errors when running locally
+app.get('/_vercel/speed-insights/script.js', (req, res) => {
+  res.type('application/javascript').send('');
 });
 
 // =============================================================================
@@ -428,10 +443,11 @@ async function getSiteConfigData() {
 
       if (heroRows) {
         heroes = heroRows.map(row => ({
-          id:        row.id,
-          full_url:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
-          thumb_url: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
-          focal_point: row.focal_point || 'center',
+          id:             row.id,
+          full_url:       getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
+          thumb_url:      getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb),
+          grid_thumb_url: row.storage_path_thumb ? getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace('.webp', '-grid.webp')) : null,
+          focal_point:    row.focal_point || 'center',
         }));
       }
     }
