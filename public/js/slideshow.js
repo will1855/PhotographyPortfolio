@@ -10,17 +10,43 @@ import { state, dom } from './state.js';
 export function initHeroSlideshow(heroes) {
   if (!dom.heroMedia) return;
   
+  // Idempotency check: Clean up any existing slideshow interval or observers
+  if (state.heroTimer) {
+    clearInterval(state.heroTimer);
+    state.heroTimer = null;
+  }
+  if (state.heroObserver) {
+    state.heroObserver.disconnect();
+    state.heroObserver = null;
+  }
+
   // Use server-provided index if available for consistency with preloading
   if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number') {
     state.heroIndex = window.INITIAL_DATA.initial_hero_index;
     delete window.INITIAL_DATA.initial_hero_index;
   } else {
-    state.heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+    // If state.heroIndex is already valid and bounds-safe, keep it for idempotency on re-entry
+    if (typeof state.heroIndex !== 'number' || state.heroIndex < 0 || state.heroIndex >= heroes.length) {
+      state.heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
+    }
   }
 
   const existingSlides = dom.heroMedia.querySelectorAll('.hero-slide');
-  if (existingSlides.length === heroes.length) {
-    // 1. Re-use server pre-rendered slides for instant paint
+  let canReuse = false;
+
+  // Check if we can safely reuse the existing DOM slides
+  if (existingSlides.length === heroes.length && heroes.length > 0) {
+    const firstImg = existingSlides[0].querySelector('img');
+    if (firstImg) {
+      const firstHero = heroes[0];
+      if (firstImg.dataset.fullUrl === firstHero.full_url || firstImg.src === firstHero.thumb_url || firstImg.dataset.src === firstHero.thumb_url) {
+        canReuse = true;
+      }
+    }
+  }
+
+  if (canReuse) {
+    // 1. Re-use server pre-rendered or existing slides safely
     state.heroSlides = Array.from(existingSlides);
     
     heroes.forEach((h, i) => {
@@ -34,9 +60,14 @@ export function initHeroSlideshow(heroes) {
         img.removeAttribute('srcset');
         img.src = h.thumb_url;
       };
-      img.addEventListener('error', handleImgError, { once: true });
-      if (img.complete && img.naturalWidth === 0) {
-        handleImgError();
+
+      // Bind listeners idempotently
+      if (img.dataset.listenersBound !== 'true') {
+        img.dataset.listenersBound = 'true';
+        img.addEventListener('error', handleImgError, { once: true });
+        if (img.complete && img.naturalWidth === 0) {
+          handleImgError();
+        }
       }
 
       // Helper function to load the standard/srcset slide image (Rule 8: lazy load)
@@ -57,13 +88,22 @@ export function initHeroSlideshow(heroes) {
         // Ensure standard thumbnail is loaded
         loadSlideImage();
 
-        // Remove the loading blur as soon as the standard thumbnail is complete
-        if (img.complete) {
+        // Idempotent blur removal helper
+        const removeBlur = () => {
           img.classList.remove('loading');
+        };
+
+        // Remove the loading blur as soon as the standard thumbnail is complete/decoded
+        if (img.complete && img.naturalWidth > 0) {
+          removeBlur();
         } else {
-          img.onload = () => {
-            img.classList.remove('loading');
-          };
+          img.addEventListener('load', removeBlur, { once: true });
+          img.addEventListener('error', removeBlur, { once: true });
+          if (typeof img.decode === 'function') {
+            img.decode().then(removeBlur).catch(removeBlur);
+          }
+          // Failsafe timeout: 2 seconds
+          setTimeout(removeBlur, 2000);
         }
 
         // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
@@ -83,6 +123,11 @@ export function initHeroSlideshow(heroes) {
           img.removeAttribute('sizes');
           img.src = h.full_url;
           img.dataset.fullLoaded = 'true';
+          removeBlur();
+        };
+        full.onerror = () => {
+          console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
+          removeBlur();
         };
         full.src = h.full_url;
       };
@@ -96,7 +141,7 @@ export function initHeroSlideshow(heroes) {
       }
     });
   } else {
-    // 2. Fallback: recreate slides from scratch if SSR mismatches
+    // 2. Fallback: recreate slides from scratch if SSR mismatches or switching sections
     dom.heroMedia.innerHTML = '';
     state.heroSlides = [];
     
@@ -122,6 +167,7 @@ export function initHeroSlideshow(heroes) {
         img.src = h.thumb_url;
       };
       img.addEventListener('error', handleImgError, { once: true });
+      img.dataset.listenersBound = 'true';
 
       div.appendChild(img);
       dom.heroMedia.appendChild(div);
@@ -139,12 +185,20 @@ export function initHeroSlideshow(heroes) {
       const loadFullRes = () => {
         loadSlideImage();
 
-        if (img.complete) {
+        const removeBlur = () => {
           img.classList.remove('loading');
+        };
+
+        if (img.complete && img.naturalWidth > 0) {
+          removeBlur();
         } else {
-          img.onload = () => {
-            img.classList.remove('loading');
-          };
+          img.addEventListener('load', removeBlur, { once: true });
+          img.addEventListener('error', removeBlur, { once: true });
+          if (typeof img.decode === 'function') {
+            img.decode().then(removeBlur).catch(removeBlur);
+          }
+          // Failsafe timeout: 2 seconds
+          setTimeout(removeBlur, 2000);
         }
 
         // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
@@ -163,6 +217,11 @@ export function initHeroSlideshow(heroes) {
           img.removeAttribute('sizes');
           img.src = h.full_url;
           img.dataset.fullLoaded = 'true';
+          removeBlur();
+        };
+        full.onerror = () => {
+          console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
+          removeBlur();
         };
         full.src = h.full_url;
       };

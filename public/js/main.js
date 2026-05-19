@@ -96,7 +96,9 @@ export async function initPage() {
  * to ensure exact-resolution preloading without double fetches.
  */
 function setupNavPrefetch() {
-  if (!dom.siteNav) return;
+  if (!dom.siteNav || dom.siteNav.dataset.prefetchSetup === 'true') return;
+  dom.siteNav.dataset.prefetchSetup = 'true';
+
   const prefetch = (e) => {
     const a = e.target.closest('a');
     if (!a || !a.href.includes('section=')) return;
@@ -461,6 +463,14 @@ if ('serviceWorker' in navigator) {
       .catch(err => console.warn('[ServiceWorker] Registration failed:', err));
   });
 }
+
+// Idempotent BFCache restore handler
+window.addEventListener('pageshow', (event) => {
+  if (event.persisted) {
+    console.log('[bfcache] Page restored from BFCache, re-initializing...');
+    initPage();
+  }
+});
 
 // Bootstrap initial load
 initPage();

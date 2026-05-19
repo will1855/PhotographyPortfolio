@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE_NAME = 'willdaviesphoto-cache-v5';
+const CACHE_NAME = 'willdaviesphoto-cache-v7';
 const STATIC_ASSETS = [
   '/',
   '/about',
@@ -23,13 +23,13 @@ self.addEventListener('install', (e) => {
   );
 });
 
-// 2. Activate event: Clear legacy caches & claim control immediately
+// 2. Activate event: Clear legacy caches starting with prefix & claim control immediately
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
         keys.map((key) => {
-          if (key !== CACHE_NAME) {
+          if (key.startsWith('willdaviesphoto-cache') && key !== CACHE_NAME) {
             console.log('[ServiceWorker] Removing legacy cache:', key);
             return caches.delete(key);
           }
@@ -53,12 +53,12 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Cache-First strategy for thumbnails and static shell assets only.
-  // High-resolution original photos (/full/) are intentionally bypassed so they use
-  // standard browser HTTP cache, which the phone OS can automatically clean up when low on space.
+  // Cache-First strategy for local static assets and local same-origin images only.
+  // We completely bypass all cross-origin Supabase images (e.g. hostname zohxfhuczcfjsstzxuwb.supabase.co)
+  // to avoid service worker caching large media assets cross-origin and keeping them
+  // persistently. The browser's native HTTP cache will naturally and efficiently handle them.
   const isImageRequest = 
-    (url.hostname.includes('supabase.co') && url.pathname.includes('/thumbs/')) ||
-    (!url.hostname.includes('supabase.co') && url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/));
+    !url.hostname.includes('supabase.co') && url.pathname.match(/\.(png|jpg|jpeg|webp|gif|svg|ico)$/);
 
   if (isImageRequest) {
     e.respondWith(
