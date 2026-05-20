@@ -1,6 +1,6 @@
 'use strict';
 
-import { state, dom } from './state.js';
+import { state, dom, logImageLoad } from './state.js';
 import { openLightbox } from './lightbox.js';
 
 const ROW_UNIT = 10; // px — grid-auto-rows value; must match CSS in style.css
@@ -205,10 +205,10 @@ export function renderGallery() {
   state.images.forEach((imgData, index) => {
     const img    = document.createElement('img');
     
-    // Set fallback source
-    img.src      = imgData.public_url_grid_thumb || imgData.public_url_thumb;
+    // Set fallback source URL
+    const fallbackSrc = imgData.public_url_grid_thumb || imgData.public_url_thumb;
     
-    // Set srcset for modern responsive image loading
+    // Set srcset first for modern responsive image loading to avoid double-fetching
     if (imgData.public_url_grid_thumb && imgData.public_url_thumb) {
       img.srcset = `${imgData.public_url_grid_thumb} 600w, ${imgData.public_url_thumb} 1600w`;
       
@@ -220,7 +220,14 @@ export function renderGallery() {
         // Normal images: 1 column always (4 columns on >1000px, 3 columns on >700px, 2 columns on <=700px)
         img.sizes = '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw';
       }
+      
+      logImageLoad(imgData.public_url_grid_thumb, 'gallery-grid-thumb (600w WebP)');
+      logImageLoad(imgData.public_url_thumb, 'gallery-standard-thumb (1600w WebP)');
+    } else {
+      logImageLoad(fallbackSrc, 'gallery-fallback-thumb');
     }
+    
+    img.src = fallbackSrc;
     
     img.alt      = imgData.alt_text || imgData.title || '';
     img.loading  = index < 8 ? 'eager' : 'lazy';

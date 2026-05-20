@@ -47,3 +47,17 @@ export const dom = {
   get siteTitle() { return document.getElementById('site-title'); },
   get lightbox() { return document.getElementById('lightbox'); }
 };
+
+/**
+ * Diagnostic logger that prints which image URLs are loaded, and of what type (thumb vs full).
+ * Enabled if '?diagnostic=true' is in the URL query string or localStorage.getItem('diagnostic') === 'true'.
+ */
+export function logImageLoad(url, type) {
+  if (!url) return;
+  const isDiagnostic = window.location.search.includes('diagnostic') ||
+                       localStorage.getItem('diagnostic') === 'true';
+  if (isDiagnostic) {
+    console.log(`%c[Image Diagnostic] Loading ${type}: ${url}`, 'color: #00ebae; font-weight: bold; background: #121212; padding: 2px 6px; border-radius: 4px;');
+  }
+}
+

@@ -60,4 +60,39 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     expect(json.error).toBe('Incorrect password');
   });
 
+  test('should log image diagnostics when ?diagnostic=true is set', async ({ page }) => {
+    const logs = [];
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('[Image Diagnostic]')) {
+        logs.push(text);
+      }
+    });
+
+    // 1. Visit homepage with diagnostic flag
+    await page.goto('/?diagnostic=true');
+    
+    // 2. Allow active hero debounce and gallery rendering to process
+    await page.waitForTimeout(2000);
+
+    console.log('Captured E2E Logs:', logs);
+
+    // 3. Assert diagnostics were outputted
+    expect(logs.length).toBeGreaterThan(0);
+    
+    // 4. Assert that no full-res images were loaded in the gallery grid
+    const fullResGalleryLogs = logs.filter(l => l.includes('Loading gallery') && l.includes('full'));
+    expect(fullResGalleryLogs.length).toBe(0);
+
+    // 5. Assert that gallery standard/grid WebP thumbnails were loaded
+    const thumbGalleryLogs = logs.filter(l => l.includes('gallery-grid-thumb') || l.includes('gallery-standard-thumb'));
+    expect(thumbGalleryLogs.length).toBeGreaterThan(0);
+
+    // 6. Assert that hero full-res upgrades are logged appropriately
+    const heroFullLogs = logs.filter(l => l.includes('Loading hero-full-res-upgrade'));
+    expect(heroFullLogs.length).toBeGreaterThan(0);
+
+    console.log('Verified E2E Diagnostic Output:\n', logs.join('\n'));
+  });
+
 });

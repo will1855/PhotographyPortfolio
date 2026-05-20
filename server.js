@@ -330,7 +330,7 @@ function formatImageRow(row) {
     focal_point:     row.focal_point || 'center',
     public_url_full:  getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
     public_url_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET,  row.storage_path_thumb),
-    public_url_grid_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace('.webp', '-grid.webp')),
+    public_url_grid_thumb: getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace(/\.webp$/i, '-grid.webp')),
     // Include paths for admin use
     storage_path_full:  row.storage_path_full,
     storage_path_thumb: row.storage_path_thumb,
@@ -479,7 +479,7 @@ async function getSiteConfigData() {
           id:             row.id,
           full_url:       getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
           thumb_url:      getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb),
-          grid_thumb_url: row.storage_path_thumb ? getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace('.webp', '-grid.webp')) : null,
+          grid_thumb_url: row.storage_path_thumb ? getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace(/\.webp$/i, '-grid.webp')) : null,
           focal_point:    row.focal_point || 'center',
         }));
       }
@@ -990,7 +990,7 @@ app.post('/api/admin/upload', requireAdmin, (req, res, next) => {
         if (thumbUploadErr) throw new Error(`Thumb upload failed: ${thumbUploadErr.message}`);
 
         // Upload grid thumbnail with 1-year immutable caching
-        const gridThumbPath = thumbPath.replace('.webp', '-grid.webp');
+        const gridThumbPath = thumbPath.replace(/\.webp$/i, '-grid.webp');
         const { error: gridUploadErr } = await supabase.storage
           .from(SUPABASE_THUMBS_BUCKET)
           .upload(gridThumbPath, gridThumbBuffer, {

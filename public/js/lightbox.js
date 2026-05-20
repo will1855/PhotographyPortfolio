@@ -1,6 +1,6 @@
 'use strict';
 
-import { state, dom } from './state.js';
+import { state, dom, logImageLoad } from './state.js';
 import { logAnalyticsEvent } from './analytics.js';
 
 // Module-scoped touch state
@@ -69,6 +69,7 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
 
   if (!thumbImg.src) {
     thumbImg.src = imgData.public_url_thumb;
+    logImageLoad(imgData.public_url_thumb, 'lightbox-thumb (1600w WebP)');
   }
 
   if (delayReady) {
@@ -83,7 +84,10 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
   }
 
   if (fullImg.dataset.fullLoaded === 'true') {
-    if (!fullImg.src) fullImg.src = imgData.public_url_full;
+    if (!fullImg.src) {
+      fullImg.src = imgData.public_url_full;
+      logImageLoad(imgData.public_url_full, 'lightbox-full-res (Original)');
+    }
     if (fullImg.dataset.delayReady !== 'true') {
       fullImg.classList.add('ready');
     }
@@ -92,6 +96,7 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
 
   if (shouldLoadFull) {
     fullImg.src = imgData.public_url_full;
+    logImageLoad(imgData.public_url_full, 'lightbox-full-res (Original)');
     fullImg.onload = () => {
       applyLightboxSize(imgData, fullImg);
       fullImg.dataset.fullLoaded = 'true';
@@ -233,12 +238,6 @@ export function updateLightbox() {
       loadLightboxSlide(state.currentIndex, openId, false, true);
     }
   }, 100);
-
-  setTimeout(() => {
-    if (openId === state.lightboxOpenId) {
-      loadLightboxSlide(state.currentIndex + 1, openId, false, true);
-    }
-  }, 480);
 
   const counter = dom.lightbox.querySelector('.lightbox-counter');
   if (counter) {

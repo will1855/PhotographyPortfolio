@@ -1,6 +1,6 @@
 'use strict';
 
-import { state, dom } from './state.js';
+import { state, dom, logImageLoad } from './state.js';
 
 /**
  * Initialises the hero slideshow. Reuses server-side pre-rendered slides if available
@@ -81,6 +81,7 @@ export function initHeroSlideshow(heroes) {
             img.sizes = '100vw';
           }
           img.src = srcVal;
+          logImageLoad(srcVal, 'hero-thumb (1600w WebP)');
         }
       };
 
@@ -112,24 +113,40 @@ export function initHeroSlideshow(heroes) {
           return;
         }
 
-        // Load the crystal-clear, full-resolution original photograph in the background (desktop only, Rule 1 & 6)
         if (img.dataset.fullLoaded === 'true') {
           return;
         }
-        const full = new Image();
-        if (i === state.heroIndex) full.fetchPriority = 'high';
-        full.onload = () => {
-          img.removeAttribute('srcset');
-          img.removeAttribute('sizes');
-          img.src = h.full_url;
-          img.dataset.fullLoaded = 'true';
-          removeBlur();
-        };
-        full.onerror = () => {
-          console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
-          removeBlur();
-        };
-        full.src = h.full_url;
+
+        // Only upgrade the currently active desktop hero image
+        // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
+        // This ensures that fast-swiping users or immediate scrolls don't waste bandwidth.
+        const delay = 800;
+        setTimeout(() => {
+          const currentMobile = window.innerWidth <= 768;
+          if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
+            return;
+          }
+          if (img.dataset.fullLoaded === 'true') {
+            return;
+          }
+
+          logImageLoad(h.full_url, 'hero-full-res-upgrade (Original)');
+
+          const full = new Image();
+          if (i === state.heroIndex) full.fetchPriority = 'high';
+          full.onload = () => {
+            img.removeAttribute('srcset');
+            img.removeAttribute('sizes');
+            img.src = h.full_url;
+            img.dataset.fullLoaded = 'true';
+            removeBlur();
+          };
+          full.onerror = () => {
+            console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
+            removeBlur();
+          };
+          full.src = h.full_url;
+        }, delay);
       };
 
       div.loadSlideImage = loadSlideImage;
@@ -179,6 +196,7 @@ export function initHeroSlideshow(heroes) {
         if (!img.src || img.src === window.location.href || img.src === '') {
           img.srcset = img.dataset.srcset;
           img.src = img.dataset.src;
+          logImageLoad(img.dataset.src, 'hero-thumb (1600w WebP)');
         }
       };
 
@@ -210,20 +228,36 @@ export function initHeroSlideshow(heroes) {
         if (img.dataset.fullLoaded === 'true') {
           return;
         }
-        const full = new Image();
-        if (i === state.heroIndex) full.fetchPriority = 'high';
-        full.onload = () => {
-          img.removeAttribute('srcset');
-          img.removeAttribute('sizes');
-          img.src = h.full_url;
-          img.dataset.fullLoaded = 'true';
-          removeBlur();
-        };
-        full.onerror = () => {
-          console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
-          removeBlur();
-        };
-        full.src = h.full_url;
+
+        // Only upgrade the currently active desktop hero image
+        // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
+        const delay = 800;
+        setTimeout(() => {
+          const currentMobile = window.innerWidth <= 768;
+          if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
+            return;
+          }
+          if (img.dataset.fullLoaded === 'true') {
+            return;
+          }
+
+          logImageLoad(h.full_url, 'hero-full-res-upgrade (Original)');
+
+          const full = new Image();
+          if (i === state.heroIndex) full.fetchPriority = 'high';
+          full.onload = () => {
+            img.removeAttribute('srcset');
+            img.removeAttribute('sizes');
+            img.src = h.full_url;
+            img.dataset.fullLoaded = 'true';
+            removeBlur();
+          };
+          full.onerror = () => {
+            console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
+            removeBlur();
+          };
+          full.src = h.full_url;
+        }, delay);
       };
 
       div.loadSlideImage = loadSlideImage;
