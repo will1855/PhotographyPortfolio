@@ -62,7 +62,7 @@ const app = express();
 app.use((req, res, next) => {
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://va.vercel-scripts.com https://cdn.jsdelivr.net",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.supabase.co",
@@ -161,7 +161,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   const performanceTags = `
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
-    <link rel="preload" href="/style.css?v=3" as="style">
+    <link rel="preload" href="/style.css?v=4" as="style">
     <link rel="modulepreload" href="/js/main.js?v=4">
   `;
   const ogTags = `

@@ -593,3 +593,8 @@ footer {
   opacity: 1 !important;
   transform: translateY(0) scale(1) !important;
 }
+
+.gallery img.reveal-on-scroll.revealed:hover {
+  transform: scale(1.008) translateZ(0) !important;
+  z-index: 10;
+}
