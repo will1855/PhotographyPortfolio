@@ -179,7 +179,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       .hero { height: 100svh; min-height: 700px; background: #000; position: relative; overflow: hidden; }
       .hero-slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease-in-out; }
       .hero-slide.active { opacity: 1; }
-      .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.96); transform: scale(1.02); }
+      .hero-slide img { width: 100%; height: 100%; object-fit: cover; filter: brightness(1.0); transform: scale(1.02); }
       .reveal { opacity: 0; transform: translateY(8px); }
     </style>
   `;
