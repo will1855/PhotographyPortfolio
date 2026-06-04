@@ -431,6 +431,10 @@ function createImageCard(img, sectionConfig, index) {
     <div class="rotate-overlay" style="display:none;">
       <div class="spinner"></div>
     </div>
+    <div class="image-card-meta">
+      <input type="text" class="meta-input meta-title" data-id="${img.id}" value="${img.title || ''}" placeholder="Title">
+      <input type="text" class="meta-input meta-year" data-id="${img.id}" value="${img.year || ''}" placeholder="Year">
+    </div>
     <div class="image-card-actions">
       <button class="btn btn-secondary btn-sm wide-btn ${img.is_wide ? 'active' : ''}" data-id="${img.id}" title="${img.is_wide ? 'Make normal width' : 'Make 2-column wide'}">↔</button>
       <button class="btn btn-secondary btn-sm fill-btn ${img.is_filled ? 'active' : ''}" data-id="${img.id}" title="${img.is_filled ? 'Remove fill gap' : 'Stretch to fill gap below'}">⛶</button>
@@ -602,6 +606,38 @@ imageGrid.addEventListener('click', async e => {
     }
   } catch {
     toast('Connection error', 'error');
+  }
+});
+
+// ─── Metadata change (auto-save) ────────────────────────────────────────────────
+imageGrid.addEventListener('change', async e => {
+  if (e.target.classList.contains('meta-input')) {
+    const id = e.target.dataset.id;
+    const card = e.target.closest('.image-card');
+    const title = card.querySelector('.meta-title').value;
+    const year = card.querySelector('.meta-year').value;
+    const section = imagesBySection[activeSection] || [];
+    const img = section.find(i => i.id === id);
+    if (!img) return;
+
+    try {
+      const res = await fetch(`/api/admin/image/${id}/metadata`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title, year })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        img.title = data.title;
+        img.year = data.year;
+        toast('Metadata saved');
+      } else {
+        toast('Failed to save metadata', 'error');
+      }
+    } catch {
+      toast('Connection error', 'error');
+    }
   }
 });
 

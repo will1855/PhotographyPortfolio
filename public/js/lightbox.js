@@ -45,18 +45,25 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
   const slide = dom.lightboxSlider.children[index];
   if (!slide) return;
 
-  let thumbImg = slide.querySelector('.lightbox-thumb');
-  let fullImg = slide.querySelector('.lightbox-full');
+  let wrapper = slide.querySelector('.lightbox-img-wrapper');
+  if (!wrapper) {
+    wrapper = document.createElement('div');
+    wrapper.className = 'lightbox-img-wrapper';
+    slide.appendChild(wrapper);
+  }
+
+  let thumbImg = wrapper.querySelector('.lightbox-thumb');
+  let fullImg = wrapper.querySelector('.lightbox-full');
 
   if (!thumbImg) {
     thumbImg = document.createElement('img');
     thumbImg.className = 'lightbox-thumb';
-    slide.appendChild(thumbImg);
+    wrapper.appendChild(thumbImg);
   }
   if (!fullImg) {
     fullImg = document.createElement('img');
     fullImg.className = 'lightbox-full';
-    slide.appendChild(fullImg);
+    wrapper.appendChild(fullImg);
   }
 
   if (thumbImg.dataset.loadedId === String(openId) && !shouldLoadFull) return;
@@ -66,6 +73,7 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
   const imgData = state.images[index];
   applyLightboxSize(imgData, thumbImg);
   applyLightboxSize(imgData, fullImg);
+  applyLightboxSize(imgData, wrapper);
 
   if (!thumbImg.src) {
     thumbImg.src = imgData.public_url_thumb;
@@ -116,9 +124,35 @@ export function loadLightboxSlide(index, openId, delayReady = false, shouldLoadF
 export function renderLightboxSlides() {
   if (!dom.lightboxSlider) return;
   dom.lightboxSlider.innerHTML = '';
-  state.images.forEach(() => {
+  state.images.forEach((img) => {
     const slide = document.createElement('div');
     slide.className = 'lightbox-slide';
+    
+    const wrapper = document.createElement('div');
+    wrapper.className = 'lightbox-img-wrapper';
+    slide.appendChild(wrapper);
+
+    if (img.title || img.year) {
+      const caption = document.createElement('div');
+      caption.className = 'lightbox-caption';
+      
+      if (img.title) {
+        const titleSpan = document.createElement('span');
+        titleSpan.className = 'lightbox-caption-title';
+        titleSpan.textContent = img.title;
+        caption.appendChild(titleSpan);
+      }
+      
+      if (img.year) {
+        const yearSpan = document.createElement('span');
+        yearSpan.className = 'lightbox-caption-year';
+        yearSpan.textContent = img.year;
+        caption.appendChild(yearSpan);
+      }
+      
+      wrapper.appendChild(caption);
+    }
+
     dom.lightboxSlider.appendChild(slide);
   });
 }
@@ -298,10 +332,10 @@ export function getDistance(touch1, touch2) {
 export function updateImageTransform() {
   const slide = dom.lightboxSlider.children[state.currentIndex];
   if (!slide) return;
-  const imgs = slide.querySelectorAll('.lightbox-thumb, .lightbox-full');
-  imgs.forEach(img => {
-    img.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.zoomScale})`;
-    img.style.transition = (state.isPinching || isDragging) ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
+  const wrappers = slide.querySelectorAll('.lightbox-img-wrapper');
+  wrappers.forEach(wrapper => {
+    wrapper.style.transform = `translate(${state.translateX}px, ${state.translateY}px) scale(${state.zoomScale})`;
+    wrapper.style.transition = (state.isPinching || isDragging) ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)';
   });
 }
 
@@ -313,10 +347,10 @@ export function resetZoom() {
   state.lastZoomScale = 1;
   state.translateX = 0;
   state.translateY = 0;
-  const slides = dom.lightboxSlider.querySelectorAll('.lightbox-slide img');
-  slides.forEach(img => {
-    img.style.transform = '';
-    img.style.transition = '';
+  const wrappers = dom.lightboxSlider.querySelectorAll('.lightbox-img-wrapper');
+  wrappers.forEach(wrapper => {
+    wrapper.style.transform = '';
+    wrapper.style.transition = '';
   });
 }
 
@@ -398,11 +432,11 @@ dom.lightbox?.addEventListener('touchmove', e => {
 
       if (isSwipingVertical) {
         const slide = dom.lightboxSlider.children[state.currentIndex];
-        const imgs = slide?.querySelectorAll('.lightbox-thumb, .lightbox-full');
-        if (imgs && imgs.length > 0) {
-          imgs.forEach(img => {
-            img.classList.add('swiping');
-            img.style.transform = `translateY(${diffY}px)`;
+        const wrappers = slide?.querySelectorAll('.lightbox-img-wrapper');
+        if (wrappers && wrappers.length > 0) {
+          wrappers.forEach(wrapper => {
+            wrapper.classList.add('swiping');
+            wrapper.style.transform = `translateY(${diffY}px)`;
           });
           // Backdrop transparency fade-out mapping during scroll dismissal
           const bgOpacity = Math.max(0.1, 0.72 - Math.abs(diffY) / 600);
@@ -431,23 +465,23 @@ dom.lightbox?.addEventListener('touchend', e => {
     } else if (isSwipingVertical) {
       const diffY = e.changedTouches[0].clientY - startY;
       const slide = dom.lightboxSlider.children[state.currentIndex];
-      const imgs = slide?.querySelectorAll('.lightbox-thumb, .lightbox-full');
+      const wrappers = slide?.querySelectorAll('.lightbox-img-wrapper');
       
-      if (imgs && imgs.length > 0) {
-        imgs.forEach(img => img.classList.remove('swiping'));
+      if (wrappers && wrappers.length > 0) {
+        wrappers.forEach(wrapper => wrapper.classList.remove('swiping'));
         if (Math.abs(diffY) > 120) {
           // Trigger full dismissing animation
-          imgs.forEach(img => {
-            img.classList.add('dismissing');
-            img.style.transform = `translateY(${diffY > 0 ? '100vh' : '-100vh'})`;
-            img.style.opacity = '0';
+          wrappers.forEach(wrapper => {
+            wrapper.classList.add('dismissing');
+            wrapper.style.transform = `translateY(${diffY > 0 ? '100vh' : '-100vh'})`;
+            wrapper.style.opacity = '0';
           });
           setTimeout(() => {
             closeLightbox();
-            imgs.forEach(img => {
-              img.style.transform = '';
-              img.style.opacity = '';
-              img.classList.remove('dismissing');
+            wrappers.forEach(wrapper => {
+              wrapper.style.transform = '';
+              wrapper.style.opacity = '';
+              wrapper.classList.remove('dismissing');
             });
             dom.lightbox.style.backgroundColor = '';
             dom.lightbox.style.backdropFilter = '';
@@ -455,15 +489,15 @@ dom.lightbox?.addEventListener('touchend', e => {
           }, 250);
         } else {
           // Bounce back dismiss block
-          imgs.forEach(img => {
-            img.classList.add('dismissing');
-            img.style.transform = '';
+          wrappers.forEach(wrapper => {
+            wrapper.classList.add('dismissing');
+            wrapper.style.transform = '';
           });
           dom.lightbox.style.backgroundColor = '';
           dom.lightbox.style.backdropFilter = '';
           dom.lightbox.style.webkitBackdropFilter = '';
           setTimeout(() => {
-            imgs.forEach(img => img.classList.remove('dismissing'));
+            wrappers.forEach(wrapper => wrapper.classList.remove('dismissing'));
           }, 250);
         }
       }

@@ -318,9 +318,23 @@ function safeEqual(a, b) {
 
 /** Format an image DB row into the public API shape. */
 function formatImageRow(row) {
+  let parsedTitle = row.title || null;
+  let parsedYear = null;
+  
+  if (row.title && row.title.trim().startsWith('{')) {
+    try {
+      const data = JSON.parse(row.title);
+      parsedTitle = data.title || null;
+      parsedYear = data.year || null;
+    } catch (e) {
+      // Not JSON, fallback to standard string
+    }
+  }
+
   return {
     id:              row.id,
-    title:           row.title || null,
+    title:           parsedTitle,
+    year:            parsedYear,
     alt_text:        row.alt_text || null,
     width:           row.width || null,
     height:          row.height || null,
@@ -1227,6 +1241,32 @@ app.patch('/api/admin/image/:id/focal', requireAdmin, async (req, res) => {
   } catch (err) {
     console.error('[PATCH /api/admin/image/focal]', err.message);
     res.status(500).json({ error: 'Failed to update focal point' });
+  }
+});
+
+/**
+ * PATCH /api/admin/image/:id/metadata
+ * Body: { "title": "Florence", "year": "2024", "alt_text": "..." }
+ * Updates the title and year (stored as JSON in title column) and alt_text.
+ */
+app.patch('/api/admin/image/:id/metadata', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { title, year, alt_text } = req.body;
+  
+  const titleData = JSON.stringify({ title: title || '', year: year || '' });
+  
+  try {
+    const { data: updated, error } = await supabase
+      .from('portfolio_images')
+      .update({ title: titleData, alt_text: alt_text || null, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(formatImageRow(updated));
+  } catch (err) {
+    console.error('[PATCH /api/admin/image/metadata]', err.message);
+    res.status(500).json({ error: 'Failed to update metadata' });
   }
 });
 
