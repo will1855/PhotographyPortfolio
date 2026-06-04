@@ -625,7 +625,7 @@ fileInput.addEventListener('change', () => {
 });
 
 // Resize and compress an image file to WebP using HTML5 Canvas
-async function compressImageToWebP(file, maxDimension = 2560, quality = 0.82) {
+async function compressImageToWebP(file, maxDimension = 3840, quality = 0.92) {
   return new Promise((resolve) => {
     if (!file.type.startsWith('image/')) {
       return resolve(file); // Return non-image files as-is
