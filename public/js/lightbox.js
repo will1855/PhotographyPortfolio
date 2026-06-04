@@ -257,8 +257,8 @@ export function openLightbox(index) {
         }
       }
       dom.lightboxSlider.style.transition = '';
-      // Animate caption after the opening transition completes
-      animateCaption(index);
+      // Delay caption until zoom has visually settled
+      setTimeout(() => animateCaption(index), 80);
     } else {
       clone?.remove();
     }
@@ -296,8 +296,8 @@ export function updateLightbox() {
     counter.textContent = `${state.currentIndex + 1} / ${state.images.length}`;
   }
 
-  // Animate caption on slide navigation
-  animateCaption(state.currentIndex);
+  // Animate caption after slider has snapped to the new slide
+  setTimeout(() => animateCaption(state.currentIndex), 80);
 
   const imgData = state.images[state.currentIndex];
   if (imgData) {

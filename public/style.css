@@ -379,12 +379,12 @@ nav a.active { color: var(--text); }
 }
 
 .lightbox-caption.caption-animate {
-  animation: lightbox-caption-in 320ms cubic-bezier(0.22, 1, 0.36, 1) 100ms both;
+  animation: lightbox-caption-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lightbox-caption.caption-animate {
-    animation: lightbox-caption-fade-only 300ms ease 80ms both;
+    animation: lightbox-caption-fade-only 500ms ease both;
   }
 
   @keyframes lightbox-caption-fade-only {
