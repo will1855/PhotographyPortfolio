@@ -350,6 +350,8 @@ nav a.active { color: var(--text); }
   pointer-events: none;
   z-index: 10;
   color: rgba(255, 255, 255, 0.9);
+  /* Start hidden — caption-animate owns the full opacity journey via its fill-mode */
+  opacity: 0;
 }
 
 .lightbox-caption-title {
