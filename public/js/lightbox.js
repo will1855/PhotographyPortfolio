@@ -209,7 +209,13 @@ export function openLightbox(index) {
   dom.lightboxSlider.style.transform = `translateX(-${index * 100}vw)`;
   
   dom.lightbox.classList.remove('hidden');
-  
+
+  // Strip any residual caption-animate from a previous animation's forwards fill.
+  // Without this, a slide that was navigated to before retains opacity:1 and the
+  // caption appears immediately on the next open before the zoom even starts.
+  const activeCaption = dom.lightboxSlider.children[index]?.querySelector('.lightbox-caption');
+  if (activeCaption) activeCaption.classList.remove('caption-animate');
+
   // Set up lightbox index tracker counter
   let counter = dom.lightbox.querySelector('.lightbox-counter');
   if (!counter) {
