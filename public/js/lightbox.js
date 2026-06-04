@@ -239,28 +239,46 @@ export function openLightbox(index) {
   }, 50);
 
   setTimeout(() => {
-    if (openId === state.lightboxOpenId) {
-      clone?.remove();
-      const activeSlide = dom.lightboxSlider.children[index];
-      if (activeSlide) {
-        const thumb = activeSlide.querySelector('.lightbox-thumb');
-        const full = activeSlide.querySelector('.lightbox-full');
-        if (thumb) {
-          delete thumb.dataset.delayReady;
-          thumb.classList.add('ready');
-        }
-        if (full) {
-          delete full.dataset.delayReady;
-          if (full.dataset.fullLoaded === 'true') {
-            full.classList.add('ready');
-          }
-        }
+    if (openId !== state.lightboxOpenId) { clone?.remove(); return; }
+
+    dom.lightboxSlider.style.transition = '';
+
+    const activeSlide = dom.lightboxSlider.children[index];
+    const thumb = activeSlide?.querySelector('.lightbox-thumb');
+    const full  = activeSlide?.querySelector('.lightbox-full');
+
+    // Reveal the lightbox images then crossfade the clone away.
+    // Only called once the thumb image is confirmed decoded — prevents the
+    // blank flash that occurs when clone is removed before the image is painted.
+    function doReveal() {
+      if (openId !== state.lightboxOpenId) { clone?.remove(); return; }
+
+      // Paint thumb (and full if already loaded) behind the still-visible clone
+      if (thumb) {
+        delete thumb.dataset.delayReady;
+        thumb.classList.add('ready');
       }
-      dom.lightboxSlider.style.transition = '';
-      // Delay caption until zoom has visually settled
-      setTimeout(() => animateCaption(index), 80);
+      if (full) {
+        delete full.dataset.delayReady;
+        if (full.dataset.fullLoaded === 'true') full.classList.add('ready');
+      }
+
+      // Fade the clone out over the painted image — no hard cut
+      if (clone) {
+        clone.style.opacity = '0'; // triggers the 220ms CSS opacity transition
+        setTimeout(() => clone.remove(), 230);
+      }
+
+      // Caption begins only after the crossfade is fully complete
+      setTimeout(() => animateCaption(index), 280);
+    }
+
+    // If thumb hasn't finished decoding yet, hold the clone in place and wait
+    if (thumb && !thumb.complete) {
+      thumb.addEventListener('load',  doReveal, { once: true });
+      thumb.addEventListener('error', doReveal, { once: true });
     } else {
-      clone?.remove();
+      doReveal();
     }
   }, 420);
 }

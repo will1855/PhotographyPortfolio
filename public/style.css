@@ -402,12 +402,13 @@ nav a.active { color: var(--text); }
   object-fit: cover;
   z-index: 101;
   pointer-events: none;
-  will-change: top, left, width, height;
+  will-change: top, left, width, height, opacity;
   transition:
-    top    420ms cubic-bezier(0.22, 1, 0.36, 1),
-    left   420ms cubic-bezier(0.22, 1, 0.36, 1),
-    width  420ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 420ms cubic-bezier(0.22, 1, 0.36, 1);
+    top     420ms cubic-bezier(0.22, 1, 0.36, 1),
+    left    420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width   420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height  420ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 220ms ease-out;
 }
 
 /* ── About page ───────────────────────────────────────────────────────────── */
