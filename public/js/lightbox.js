@@ -12,6 +12,22 @@ let currentTranslate = 0;
 let isDragging = false;
 
 /**
+ * Triggers the caption entrance animation on the active slide's caption.
+ * Removes and re-adds the class so the animation always replays cleanly.
+ * @param {number} index - Slide index to animate
+ */
+function animateCaption(index) {
+  const slide = dom.lightboxSlider?.children[index];
+  if (!slide) return;
+  const caption = slide.querySelector('.lightbox-caption');
+  if (!caption) return;
+  caption.classList.remove('caption-animate');
+  // Force reflow so the browser registers the class removal before re-adding
+  void caption.offsetWidth;
+  caption.classList.add('caption-animate');
+}
+
+/**
  * Calculates constrained dimensions for the lightbox image preserving aspect ratio.
  * @param {Object} imgData - Image metadata containing width & height
  * @returns {Object} { w, h } constrained dimensions
@@ -241,6 +257,8 @@ export function openLightbox(index) {
         }
       }
       dom.lightboxSlider.style.transition = '';
+      // Animate caption after the opening transition completes
+      animateCaption(index);
     } else {
       clone?.remove();
     }
@@ -277,6 +295,9 @@ export function updateLightbox() {
   if (counter) {
     counter.textContent = `${state.currentIndex + 1} / ${state.images.length}`;
   }
+
+  // Animate caption on slide navigation
+  animateCaption(state.currentIndex);
 
   const imgData = state.images[state.currentIndex];
   if (imgData) {
