@@ -436,6 +436,7 @@ function createImageCard(img, sectionConfig, index) {
       <input type="text" class="meta-input meta-year" data-id="${img.id}" value="${img.year || ''}" placeholder="Year">
     </div>
     <div class="image-card-actions">
+      <button class="btn btn-secondary btn-sm edit-meta-btn" data-id="${img.id}" title="Edit Metadata">✎</button>
       <button class="btn btn-secondary btn-sm wide-btn ${img.is_wide ? 'active' : ''}" data-id="${img.id}" title="${img.is_wide ? 'Make normal width' : 'Make 2-column wide'}">↔</button>
       <button class="btn btn-secondary btn-sm fill-btn ${img.is_filled ? 'active' : ''}" data-id="${img.id}" title="${img.is_filled ? 'Remove fill gap' : 'Stretch to fill gap below'}">⛶</button>
       <button class="btn btn-secondary btn-sm rotate-btn" data-id="${img.id}" data-degrees="-90" title="Rotate left">↺</button>
@@ -609,7 +610,16 @@ imageGrid.addEventListener('click', async e => {
   }
 });
 
-// ─── Metadata change (auto-save) ────────────────────────────────────────────────
+// ─── Metadata change (auto-save) & Toggle ──────────────────────────────────────
+imageGrid.addEventListener('click', e => {
+  const btn = e.target.closest('.edit-meta-btn');
+  if (btn) {
+    const card = btn.closest('.image-card');
+    card.classList.toggle('show-meta');
+    btn.classList.toggle('active');
+  }
+});
+
 imageGrid.addEventListener('change', async e => {
   if (e.target.classList.contains('meta-input')) {
     const id = e.target.dataset.id;

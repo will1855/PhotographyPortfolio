@@ -377,11 +377,15 @@ textarea { min-height: 100px; }
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.75);
-  display: flex;
+  display: none;
   flex-direction: column;
   padding: 8px;
   gap: 4px;
   z-index: 6;
+}
+
+.image-card.show-meta .image-card-meta {
+  display: flex;
 }
 
 .meta-input {
