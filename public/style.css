@@ -553,11 +553,11 @@ nav a.active {
   }
 
   .lightbox-caption-title {
-    font-size: 0.45rem;
+    font-size: 0.6rem;
   }
 
   .lightbox-caption-year {
-    font-size: 0.4rem;
+    font-size: 0.6rem;
     margin-top: 1px;
   }
 }
