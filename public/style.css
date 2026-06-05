@@ -31,7 +31,10 @@ body {
    when switching tabs from a scrolled position. The root transition will handle
     the cross-fade instead. */
 
-.hero, main, .about-page, footer {
+.hero,
+main,
+.about-page,
+footer {
   opacity: 1;
   transition: opacity 500ms ease;
 }
@@ -118,8 +121,13 @@ nav a {
   transition: color 180ms ease;
 }
 
-nav a:hover { color: var(--text); }
-nav a.active { color: var(--text); }
+nav a:hover {
+  color: var(--text);
+}
+
+nav a.active {
+  color: var(--text);
+}
 
 /* ── Hero ─────────────────────────────────────────────────────────────────── */
 .hero {
@@ -170,7 +178,7 @@ nav a.active { color: var(--text); }
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(5,5,5,0.78) 0%, rgba(5,5,5,0.2) 32%, rgba(5,5,5,0.15) 100%);
+  background: linear-gradient(to top, rgba(5, 5, 5, 0.78) 0%, rgba(5, 5, 5, 0.2) 32%, rgba(5, 5, 5, 0.15) 100%);
 }
 
 .hero-overlay {
@@ -206,7 +214,8 @@ nav a.active { color: var(--text); }
   display: grid;
   grid-auto-rows: 10px;
   gap: 0;
-  overflow: hidden; /* Contain sub-pixel overflows */
+  overflow: hidden;
+  /* Contain sub-pixel overflows */
 }
 
 .gallery img {
@@ -282,7 +291,10 @@ nav a.active { color: var(--text); }
   padding: 4px 8px;
   transition: color 150ms ease;
 }
-.lightbox-close:hover { color: var(--text); }
+
+.lightbox-close:hover {
+  color: var(--text);
+}
 
 #lightbox-slider {
   display: flex;
@@ -344,7 +356,7 @@ nav a.active { color: var(--text); }
   left: 0;
   right: 0;
   padding: 40px 24px 24px 24px;
-  background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0) 100%);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 100%);
   display: flex;
   flex-direction: column;
   pointer-events: none;
@@ -358,14 +370,14 @@ nav a.active { color: var(--text); }
   font-size: 0.9rem;
   font-weight: 500;
   letter-spacing: 0.02em;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 .lightbox-caption-year {
   font-size: 0.8rem;
   opacity: 0.75;
   margin-top: 2px;
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 /* ── Lightbox caption entrance animation ─────────────────────────────────── */
@@ -374,6 +386,7 @@ nav a.active { color: var(--text); }
     opacity: 0;
     transform: translateY(6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -390,8 +403,13 @@ nav a.active { color: var(--text); }
   }
 
   @keyframes lightbox-caption-fade-only {
-    from { opacity: 0; }
-    to   { opacity: 1; }
+    from {
+      opacity: 0;
+    }
+
+    to {
+      opacity: 1;
+    }
   }
 }
 
@@ -406,10 +424,10 @@ nav a.active { color: var(--text); }
   pointer-events: none;
   will-change: top, left, width, height, opacity;
   transition:
-    top     420ms cubic-bezier(0.22, 1, 0.36, 1),
-    left    420ms cubic-bezier(0.22, 1, 0.36, 1),
-    width   420ms cubic-bezier(0.22, 1, 0.36, 1),
-    height  420ms cubic-bezier(0.22, 1, 0.36, 1),
+    top 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    left 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 420ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 220ms ease-out;
 }
 
@@ -476,14 +494,14 @@ nav a.active { color: var(--text); }
   color: var(--muted);
   text-decoration: none;
   font-size: 0.9rem;
-  border-bottom: 1px solid rgba(243,243,240,0.25);
+  border-bottom: 1px solid rgba(243, 243, 240, 0.25);
   padding-bottom: 3px;
   transition: color 180ms ease, border-color 180ms ease;
 }
 
 .about-links a:hover {
   color: var(--text);
-  border-color: rgba(243,243,240,0.6);
+  border-color: rgba(243, 243, 240, 0.6);
 }
 
 
@@ -514,10 +532,34 @@ nav a.active { color: var(--text); }
 }
 
 @media (max-width: 700px) {
-  header { padding: 0 14px; }
-  .hero-overlay { padding: 0 16px 52px; }
-  nav { gap: 12px; }
-  .about-content { padding: calc(var(--header-h) + 32px) 14px 60px; }
+  header {
+    padding: 0 14px;
+  }
+
+  .hero-overlay {
+    padding: 0 16px 52px;
+  }
+
+  nav {
+    gap: 12px;
+  }
+
+  .about-content {
+    padding: calc(var(--header-h) + 32px) 14px 60px;
+  }
+
+  .lightbox-caption {
+    padding: 24px 16px 16px 16px;
+  }
+
+  .lightbox-caption-title {
+    font-size: 0.45rem;
+  }
+
+  .lightbox-caption-year {
+    font-size: 0.4rem;
+    margin-top: 1px;
+  }
 }
 
 /* ── Footer ───────────────────────────────────────────────────────────── */
@@ -602,8 +644,13 @@ footer {
   font-size: 0.9rem;
 }
 
-#form-status.success { color: #4ade80; }
-#form-status.error { color: #f87171; }
+#form-status.success {
+  color: #4ade80;
+}
+
+#form-status.error {
+  color: #f87171;
+}
 
 /* ── Ken Burns Slideshow Effect ───────────────────────────────────────────── */
 .hero-slide.active img,
@@ -615,6 +662,7 @@ footer {
   0% {
     transform: scale(1.02) translate(0, 0);
   }
+
   100% {
     transform: scale(1.06) translate(0.5%, -0.3%);
   }
@@ -655,7 +703,7 @@ footer {
   opacity: 0 !important;
   transform: translateY(24px) scale(0.985);
   transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1),
-              transform 800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 .reveal-on-scroll.revealed {
