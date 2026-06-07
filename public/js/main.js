@@ -1,10 +1,10 @@
 'use strict';
 
-import { state, dom } from './state.js';
 import { logAnalyticsEvent } from './analytics.js';
-import { initHeroSlideshow } from './slideshow.js';
 import { renderGallery } from './gallery.js';
 import { renderLightboxSlides } from './lightbox.js';
+import { initHeroSlideshow } from './slideshow.js';
+import { dom, state } from './state.js';
 
 // Local variables in main scope
 let siteConfigCache = null;
@@ -60,7 +60,7 @@ export async function initPage() {
       try {
         let data;
         const currentSection = new URLSearchParams(window.location.search).get('section') || 'archive';
-        
+
         if (siteConfigCache?.initial_images && state.section === currentSection) {
           data = siteConfigCache.initial_images;
           delete siteConfigCache.initial_images; // Consume only once
@@ -115,7 +115,7 @@ function setupNavPrefetch() {
               link.rel = 'preload';
               link.as = 'image';
               link.href = img.public_url_grid_thumb || img.public_url_thumb;
-              
+
               if (img.public_url_grid_thumb && img.public_url_thumb) {
                 link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1600w`);
                 if (img.is_wide) {
@@ -124,14 +124,14 @@ function setupNavPrefetch() {
                   link.setAttribute('imagesizes', '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw');
                 }
               }
-              
+
               link.setAttribute('fetchpriority', 'low');
               document.head.appendChild(link);
             });
           })
-          .catch(() => {});
+          .catch(() => { });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
   dom.siteNav.addEventListener('mouseover', prefetch, { passive: true });
   dom.siteNav.addEventListener('touchstart', prefetch, { passive: true });
@@ -193,9 +193,9 @@ function applyConfig(config) {
       dom.heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
     }
     if (dom.heroLink) {
-      dom.heroLink.textContent   = sectionConfig.hero_link_text || 'View';
+      dom.heroLink.textContent = sectionConfig.hero_link_text || 'View';
     }
-    
+
     if (sectionConfig.heroes && sectionConfig.heroes.length > 0) {
       initHeroSlideshow(sectionConfig.heroes);
     }
@@ -237,8 +237,8 @@ function loadAbout(config) {
   }
 
   const links = [];
-  if (config.contact_email)  links.push(`<a href="mailto:${escapeHtml(config.contact_email)}">${escapeHtml(config.contact_email)}</a>`);
-  if (config.instagram_url)  links.push(`<a href="${escapeHtml(config.instagram_url)}" target="_blank" rel="noopener">Instagram ↗</a>`);
+  if (config.contact_email) links.push(`<a href="mailto:${escapeHtml(config.contact_email)}">${escapeHtml(config.contact_email)}</a>`);
+  if (config.instagram_url) links.push(`<a href="${escapeHtml(config.instagram_url)}" target="_blank" rel="noopener">Instagram ↗</a>`);
   if (links.length > 0) {
     textCol += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
   }
@@ -339,7 +339,7 @@ document.addEventListener('click', async (e) => {
 
   // Skip hash-only anchor jumps (handled natively by browser layout engine)
   const currentBase = window.location.pathname + window.location.search;
-  const targetBase  = a.pathname + a.search;
+  const targetBase = a.pathname + a.search;
   if (a.hash && targetBase === currentBase) return;
 
   e.preventDefault();
@@ -408,7 +408,7 @@ async function handleRoute(url) {
       appContent.innerHTML = newContent.innerHTML;
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);
-      
+
       document.title = doc.title;
       await initPage();
     };
