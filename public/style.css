@@ -715,3 +715,92 @@ footer {
   transform: scale(1.008) translateZ(0) !important;
   z-index: 10;
 }
+
+
+
+/* ── Subtle glass UI polish ─────────────────────────────────────────────── */
+
+:root {
+  --soft-glass-bg: rgba(255, 255, 255, 0.045);
+  --soft-glass-bg-hover: rgba(255, 255, 255, 0.075);
+  --soft-glass-border: rgba(255, 255, 255, 0.11);
+  --soft-glass-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Slightly refine the existing frosted header */
+header {
+  background: rgba(5, 5, 5, 0.22);
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+header.scrolled {
+  background: rgba(5, 5, 5, 0.46);
+}
+
+/* Nav page buttons: subtle, not shiny white pills */
+nav {
+  gap: 8px;
+}
+
+nav a {
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition:
+    color 180ms ease,
+    background 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 180ms ease;
+}
+
+nav a:hover {
+  color: var(--text);
+  background: var(--soft-glass-bg-hover);
+  border-color: var(--soft-glass-border);
+  backdrop-filter: blur(14px) saturate(130%);
+  -webkit-backdrop-filter: blur(14px) saturate(130%);
+  box-shadow: var(--soft-glass-shadow);
+}
+
+nav a.active {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.028);
+  border-color: rgba(255, 255, 255, 0.07);
+}
+
+nav a:active {
+  transform: scale(0.97);
+}
+
+/* Hero View button */
+.hero-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.035);
+  color: var(--text);
+  text-decoration: none;
+  backdrop-filter: blur(12px) saturate(125%);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  transition:
+    background 220ms ease,
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 180ms ease;
+}
+
+.hero-link:hover {
+  background: rgba(255, 255, 255, 0.075);
+  border-color: rgba(255, 255, 255, 0.16);
+  box-shadow: var(--soft-glass-shadow);
+  transform: translateY(-1px);
+}
