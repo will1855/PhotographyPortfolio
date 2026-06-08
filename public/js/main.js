@@ -47,6 +47,8 @@ export async function initPage() {
     applyConfig(siteConfigCache);
     setupNavPrefetch();
     setupLiquidNavDrag();
+    setupLiquidHoverEffects();
+    setupLiquidGlassReactivity();
 
     updateLiquidNavPill(true);
   } catch (err) {
@@ -361,6 +363,174 @@ function setupLiquidNavDrag() {
       goToNavLink(link);
     }
   }, true);
+}
+
+function setupLiquidHoverEffects() {
+  const elements = [];
+  const nav = dom.siteNav || document.querySelector('nav');
+  if (nav) elements.push(nav);
+  
+  const heroLink = dom.heroLink || document.querySelector('.hero-link');
+  if (heroLink) elements.push(heroLink);
+  
+  elements.forEach(el => {
+    if (el.dataset.liquidHoverSetup === 'true') return;
+    el.dataset.liquidHoverSetup = 'true';
+    
+    el.addEventListener('pointermove', (e) => {
+      if (el.classList.contains('nav-dragging')) return;
+      
+      if (el._resetRaf) {
+        cancelAnimationFrame(el._resetRaf);
+        el._resetRaf = null;
+      }
+      
+      const rect = el.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      
+      const normX = (x / rect.width) * 2 - 1;
+      const normY = (y / rect.height) * 2 - 1;
+      
+      el.style.setProperty('--tilt-x', normX.toFixed(3));
+      el.style.setProperty('--tilt-y', normY.toFixed(3));
+      
+      const glareX = (x / rect.width) * 100;
+      const glareY = (y / rect.height) * 100;
+      el.style.setProperty('--glare-x', `${glareX.toFixed(1)}%`);
+      el.style.setProperty('--glare-y', `${glareY.toFixed(1)}%`);
+    });
+    
+    el.addEventListener('pointerleave', () => {
+      if (el._resetRaf) {
+        cancelAnimationFrame(el._resetRaf);
+      }
+      
+      let currentX = parseFloat(el.style.getPropertyValue('--tilt-x')) || 0;
+      let currentY = parseFloat(el.style.getPropertyValue('--tilt-y')) || 0;
+      
+      const duration = 250;
+      const start = performance.now();
+      
+      function reset() {
+        const elapsed = performance.now() - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const ease = progress * (2 - progress);
+        
+        const nextX = currentX * (1 - ease);
+        const nextY = currentY * (1 - ease);
+        
+        el.style.setProperty('--tilt-x', nextX.toFixed(3));
+        el.style.setProperty('--tilt-y', nextY.toFixed(3));
+        
+        const currentGlareX = parseFloat(el.style.getPropertyValue('--glare-x')) || 50;
+        const currentGlareY = parseFloat(el.style.getPropertyValue('--glare-y')) || 20;
+        const nextGlareX = currentGlareX + (50 - currentGlareX) * ease;
+        const nextGlareY = currentGlareY + (20 - currentGlareY) * ease;
+        
+        el.style.setProperty('--glare-x', `${nextGlareX.toFixed(1)}%`);
+        el.style.setProperty('--glare-y', `${nextGlareY.toFixed(1)}%`);
+        
+        if (progress < 1) {
+          el._resetRaf = requestAnimationFrame(reset);
+        } else {
+          el.style.removeProperty('--tilt-x');
+          el.style.removeProperty('--tilt-y');
+          el.style.removeProperty('--glare-x');
+          el.style.removeProperty('--glare-y');
+          el._resetRaf = null;
+        }
+      }
+      el._resetRaf = requestAnimationFrame(reset);
+    });
+  });
+}
+
+/**
+ * Drives the SVG liquid-lens filter reactively from mouse position.
+ * The feTurbulence baseFrequency shifts as the cursor moves across the
+ * glass element, so the background image visibly warps and refracts
+ * in real time — not static blur.
+ */
+function setupLiquidGlassReactivity() {
+  // Grab the live SVG filter elements so we can mutate their attributes each frame
+  const turbulence = document.querySelector('#liquid-lens-backdrop feTurbulence');
+  const displacement = document.querySelector('#liquid-lens-backdrop feDisplacementMap');
+  if (!turbulence || !displacement) return;
+
+  const nav = dom.siteNav || document.querySelector('nav');
+  const heroLink = dom.heroLink || document.querySelector('.hero-link');
+  const glassEls = [nav, heroLink].filter(Boolean);
+
+  // Smoothed internal state
+  let targetFreqX = 0.015;
+  let targetFreqY = 0.015;
+  let currentFreqX = 0.015;
+  let currentFreqY = 0.015;
+  let targetScale = 18;
+  let currentScale = 18;
+  let animRaf = null;
+  let isHovering = false;
+
+  // Base frequency range: rest vs hovered
+  const REST_FREQ = 0.015;
+  const HOVER_FREQ_X_RANGE = 0.018; // delta from rest when cursor is at edge
+  const HOVER_FREQ_Y_RANGE = 0.012;
+  const REST_SCALE = 18;
+  const HOVER_SCALE = 32;
+
+  function animateFilter() {
+    // Smooth towards target with exponential decay (feels springy/liquid)
+    const lerpFactor = 0.1;
+    currentFreqX += (targetFreqX - currentFreqX) * lerpFactor;
+    currentFreqY += (targetFreqY - currentFreqY) * lerpFactor;
+    currentScale += (targetScale - currentScale) * lerpFactor;
+
+    turbulence.setAttribute('baseFrequency', `${currentFreqX.toFixed(5)} ${currentFreqY.toFixed(5)}`);
+    displacement.setAttribute('scale', currentScale.toFixed(2));
+
+    // Keep running while hovering or while values are still settling
+    const settled =
+      Math.abs(currentFreqX - targetFreqX) < 0.0001 &&
+      Math.abs(currentFreqY - targetFreqY) < 0.0001 &&
+      Math.abs(currentScale - targetScale) < 0.1;
+
+    if (!settled || isHovering) {
+      animRaf = requestAnimationFrame(animateFilter);
+    } else {
+      animRaf = null;
+    }
+  }
+
+  function startAnim() {
+    if (!animRaf) animRaf = requestAnimationFrame(animateFilter);
+  }
+
+  glassEls.forEach(el => {
+    el.addEventListener('pointermove', (e) => {
+      isHovering = true;
+      const rect = el.getBoundingClientRect();
+      // Normalised cursor position: -1 (left/top) to +1 (right/bottom)
+      const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
+
+      // Map cursor position to turbulence frequency shift
+      targetFreqX = REST_FREQ + nx * HOVER_FREQ_X_RANGE * 0.5;
+      targetFreqY = REST_FREQ + Math.abs(ny) * HOVER_FREQ_Y_RANGE;
+      targetScale = REST_SCALE + (1 - Math.abs(nx) * 0.5) * (HOVER_SCALE - REST_SCALE);
+
+      startAnim();
+    }, { passive: true });
+
+    el.addEventListener('pointerleave', () => {
+      isHovering = false;
+      // Return to rest state
+      targetFreqX = REST_FREQ;
+      targetFreqY = REST_FREQ;
+      targetScale = REST_SCALE;
+      startAnim();
+    }, { passive: true });
+  });
 }
 
 function applyConfig(config) {
