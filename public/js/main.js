@@ -46,6 +46,9 @@ export async function initPage() {
     }
     applyConfig(siteConfigCache);
     setupNavPrefetch();
+    setupLiquidNavDrag();
+
+    requestAnimationFrame(updateLiquidNavPill);
   } catch (err) {
     console.warn('[config] Failed to load site config, using defaults', err);
     applyFallbackNav();
@@ -141,6 +144,171 @@ function setupNavPrefetch() {
  * Configures dynamic page metadata, site title, navigation active states,
  * kicker text, and boots the slideshow.
  */
+let navPointer = null;
+let suppressNextNavClick = false;
+
+function updateLiquidNavPill() {
+  const nav = dom.siteNav || document.querySelector('nav');
+  const activeLink = nav?.querySelector('a.active');
+
+  if (!nav || !activeLink) return;
+
+  nav.style.setProperty('--nav-pill-x', `${activeLink.offsetLeft}px`);
+  nav.style.setProperty('--nav-pill-w', `${activeLink.offsetWidth}px`);
+}
+
+function setActiveNavLink(link) {
+  const nav = dom.siteNav || document.querySelector('nav');
+  if (!nav || !link) return;
+
+  nav.querySelectorAll('a').forEach(a => {
+    a.classList.toggle('active', a === link);
+  });
+
+  updateLiquidNavPill();
+}
+
+function getClosestNavLink(nav, clientX) {
+  const links = Array.from(nav.querySelectorAll('a'));
+  let closest = null;
+  let closestDistance = Infinity;
+
+  for (const link of links) {
+    const rect = link.getBoundingClientRect();
+    const centre = rect.left + rect.width / 2;
+    const distance = Math.abs(clientX - centre);
+
+    if (distance < closestDistance) {
+      closest = link;
+      closestDistance = distance;
+    }
+  }
+
+  return closest;
+}
+
+async function goToNavLink(link) {
+  if (!link) return;
+
+  const currentBase = window.location.pathname + window.location.search;
+  const targetBase = link.pathname + link.search;
+
+  setActiveNavLink(link);
+
+  if (targetBase === currentBase) {
+    requestAnimationFrame(updateLiquidNavPill);
+    return;
+  }
+
+  window.history.pushState({}, '', link.href);
+  _lastRoutedBase = targetBase;
+
+  await handleRoute(link.href);
+
+  requestAnimationFrame(updateLiquidNavPill);
+}
+
+function movePillToPointer(nav, clientX) {
+  const navRect = nav.getBoundingClientRect();
+  const closestLink = getClosestNavLink(nav, clientX);
+
+  const width = closestLink?.offsetWidth ||
+    parseFloat(getComputedStyle(nav).getPropertyValue('--nav-pill-w')) ||
+    48;
+
+  let x = clientX - navRect.left - width / 2;
+  x = Math.max(3, Math.min(x, nav.offsetWidth - width - 3));
+
+  nav.style.setProperty('--nav-pill-x', `${x}px`);
+  nav.style.setProperty('--nav-pill-w', `${width}px`);
+}
+
+function setupLiquidNavDrag() {
+  const nav = dom.siteNav || document.querySelector('nav');
+  if (!nav || nav.dataset.liquidDragSetup === 'true') return;
+
+  nav.dataset.liquidDragSetup = 'true';
+
+  nav.addEventListener('pointerdown', (e) => {
+    if (!e.isPrimary) return;
+
+    const targetLink = e.target.closest('a');
+    if (!targetLink) return;
+
+    navPointer = {
+      id: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      startLink: targetLink,
+      didDrag: false,
+    };
+
+    nav.setPointerCapture?.(e.pointerId);
+  });
+
+  nav.addEventListener('pointermove', (e) => {
+    if (!navPointer || navPointer.id !== e.pointerId) return;
+
+    const dx = Math.abs(e.clientX - navPointer.startX);
+    const dy = Math.abs(e.clientY - navPointer.startY);
+
+    if (!navPointer.didDrag && dx < 5 && dy < 5) return;
+
+    navPointer.didDrag = true;
+    nav.classList.add('nav-dragging');
+
+    movePillToPointer(nav, e.clientX);
+  });
+
+  nav.addEventListener('pointerup', async (e) => {
+    if (!navPointer || navPointer.id !== e.pointerId) return;
+
+    const wasDrag = navPointer.didDrag;
+    const clickedLink = navPointer.startLink;
+
+    navPointer = null;
+    nav.classList.remove('nav-dragging');
+
+    const chosenLink = wasDrag
+      ? getClosestNavLink(nav, e.clientX)
+      : clickedLink;
+
+    // Always suppress the follow-up native click.
+    // We are handling nav ourselves here.
+    suppressNextNavClick = true;
+
+    await goToNavLink(chosenLink);
+
+    setTimeout(() => {
+      suppressNextNavClick = false;
+    }, 0);
+  });
+
+  nav.addEventListener('pointercancel', () => {
+    navPointer = null;
+    suppressNextNavClick = false;
+    nav.classList.remove('nav-dragging');
+    requestAnimationFrame(updateLiquidNavPill);
+  });
+
+  nav.addEventListener('click', (e) => {
+    const link = e.target.closest('a');
+    if (!link) return;
+
+    if (suppressNextNavClick) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      suppressNextNavClick = false;
+      return;
+    }
+
+    // Fallback only, in case pointer events fail for some reason.
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    goToNavLink(link);
+  }, true);
+}
+
 function applyConfig(config) {
   const site_title = config.site_title || 'Will Davies';
   const sections = config.sections || [];
@@ -470,6 +638,14 @@ window.addEventListener('pageshow', (event) => {
     console.log('[bfcache] Page restored from BFCache, re-initializing...');
     initPage();
   }
+});
+
+window.addEventListener('resize', () => {
+  requestAnimationFrame(updateLiquidNavPill);
+});
+
+window.addEventListener('load', () => {
+  requestAnimationFrame(updateLiquidNavPill);
 });
 
 // Bootstrap initial load
