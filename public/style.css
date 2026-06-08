@@ -1,3 +1,8 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Will Davies Photography — style.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Reset & Root ──────────────────────────────────────────────────────────── */
 * {
   margin: 0;
   padding: 0;
@@ -5,19 +10,14 @@
 }
 
 :root {
-  --bg: #050505;
-  --text: #f3f3f0;
-  --muted: rgba(243, 243, 240, 0.72);
+  --bg:     #050505;
+  --text:   #f3f3f0;
+  --muted:  rgba(243, 243, 240, 0.72);
   --header-h: 56px;
 }
 
-html {
-  scroll-behavior: auto;
-}
-
-html.smooth-scroll-active {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: auto; }
+html.smooth-scroll-active { scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
@@ -27,16 +27,23 @@ body {
   text-rendering: optimizeLegibility;
 }
 
-/* #app-content removed view-transition-name to prevent the "scroll-up" animation
-   when switching tabs from a scrolled position. The root transition will handle
-    the cross-fade instead. */
+body.preload * { transition: none !important; }
+body.lightbox-open { overflow: hidden; }
 
+/* Page-level fade transitions */
 .hero,
 main,
 .about-page,
 footer {
   opacity: 1;
   transition: opacity 500ms ease;
+}
+
+.page-fade-out .hero,
+.page-fade-out main,
+.page-fade-out .about-page,
+.page-fade-out footer {
+  opacity: 0;
 }
 
 main {
@@ -46,31 +53,19 @@ main {
 }
 
 
-
-body.preload * {
-  transition: none !important;
-}
-
-body.lightbox-open {
-  overflow: hidden;
-}
-
-/* ── Header ───────────────────────────────────────────────────────────────── */
+/* ── Header ────────────────────────────────────────────────────────────────── */
+/* Fully invisible container — only the name (left) and nav pill (right) show */
 header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  /* No fixed height — let padding define the spacing */
   padding: 18px 28px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   z-index: 20;
-  /* Fully invisible bar — only child elements visible */
   background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
   border: none;
   pointer-events: none;
   transition:
@@ -79,28 +74,12 @@ header {
   view-transition-name: site-header;
 }
 
-/* Ensure the header stays on top and steady during native page transitions */
-::view-transition-group(site-header) {
-  z-index: 10000;
-}
-
+/* View-transition rules keep the header pinned across page transitions */
+::view-transition-group(site-header) { z-index: 10000; }
 ::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 200ms;
-}
-
-::view-transition-old(site-header) {
-  animation: none;
-  opacity: 0;
-  mix-blend-mode: normal;
-}
-
-::view-transition-new(site-header) {
-  animation: none;
-  opacity: 1;
-  mix-blend-mode: normal;
-}
-
+::view-transition-new(root)          { animation-duration: 200ms; }
+::view-transition-old(site-header)   { animation: none; opacity: 0; mix-blend-mode: normal; }
+::view-transition-new(site-header)   { animation: none; opacity: 1; mix-blend-mode: normal; }
 
 .hidden-header {
   opacity: 0;
@@ -108,18 +87,12 @@ header {
   pointer-events: none;
 }
 
-header.scrolled {
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-bottom: none;
-}
-
 body.lightbox-open header {
   opacity: 0;
   pointer-events: none;
 }
 
+/* Site name — top left */
 header h1 {
   font-size: 0.72rem;
   font-weight: 400;
@@ -131,28 +104,8 @@ header h1 {
   flex-shrink: 0;
 }
 
-/* Legacy nav defaults (overridden below in liquid nav section) */
-nav {
-  display: flex;
-  gap: 0;
-}
 
-nav a {
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.82rem;
-  transition: color 180ms ease;
-}
-
-nav a:hover {
-  color: var(--text);
-}
-
-nav a.active {
-  color: var(--text);
-}
-
-/* ── Hero ─────────────────────────────────────────────────────────────────── */
+/* ── Hero ──────────────────────────────────────────────────────────────────── */
 .hero {
   position: relative;
   height: 100svh;
@@ -173,9 +126,7 @@ nav a.active {
   transition: opacity 1600ms ease-in-out;
 }
 
-.hero-slide.active {
-  opacity: 1;
-}
+.hero-slide.active { opacity: 1; }
 
 .hero-slide img {
   width: 100%;
@@ -187,23 +138,54 @@ nav a.active {
   transition: filter 600ms ease;
 }
 
-.hero-slide img.loading {
-  filter: brightness(0.96) blur(20px);
-}
+.hero-slide img.loading { filter: brightness(0.96) blur(20px); }
 
 @media (max-width: 768px) {
-  .hero-slide img {
-    object-position: var(--mobile-focal-point, center);
-  }
+  .hero-slide img { object-position: var(--mobile-focal-point, center); }
 }
 
+/* Ken Burns pan */
+.hero-slide.active img,
+.hero-slide.last-active img {
+  animation: kenburns 10s ease-out forwards;
+}
+
+@keyframes kenburns {
+  0%   { transform: scale(1.02) translate(0, 0); }
+  100% { transform: scale(1.06) translate(0.5%, -0.3%); }
+}
+
+/* Bottom gradient — CTA/kicker legibility */
 .hero::after {
   content: "";
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(5, 5, 5, 0.78) 0%, rgba(5, 5, 5, 0.2) 32%, rgba(5, 5, 5, 0.15) 100%);
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to top,
+    rgba(5, 5, 5, 0.78)  0%,
+    rgba(5, 5, 5, 0.20) 32%,
+    rgba(5, 5, 5, 0.05) 100%
+  );
 }
 
+/* Top vignette — baseline contrast guarantee for nav/name.
+   Not a bar: soft gradient that fades to zero by 40% height. */
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(0, 0, 0, 0.32)  0%,
+    rgba(0, 0, 0, 0.12) 14%,
+    rgba(0, 0, 0, 0.04) 26%,
+    rgba(0, 0, 0, 0.00) 40%
+  );
+}
+
+/* Hero bottom overlay — kicker text + CTA */
 .hero-overlay {
   position: relative;
   z-index: 2;
@@ -224,21 +206,215 @@ nav a.active {
   margin-bottom: 14px;
 }
 
-.hero-link {
-  color: var(--text);
-  text-decoration: none;
-  font-size: 0.95rem;
-  border-bottom: 1px solid rgba(243, 243, 240, 0.4);
-  padding-bottom: 4px;
+
+/* ── Liquid Glass Nav Pill ─────────────────────────────────────────────────── */
+
+nav {
+  --nav-pill-x:       3px;
+  --nav-pill-w:       0px;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 3px;
+  border-radius: 999px;
+  isolation: isolate;
+  flex-shrink: 0;
+  touch-action: pan-y;
+  pointer-events: auto;
+
+  /* Track — nearly invisible, just a thin outline */
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* ── Gallery ────────────────────────────────────────────────────────────────── */
+/* Sliding active-pill glass capsule */
+nav::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: var(--nav-pill-w);
+  height: calc(100% - 4px);
+  transform: translate3d(var(--nav-pill-x), 0, 0)
+             scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
+  transform-origin: center center;
+  border-radius: 999px;
+  z-index: 0;
+  pointer-events: none;
+
+  background: rgba(255, 255, 255, 0.06);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.22);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+
+  transition:
+    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
+    width     350ms cubic-bezier(0.25, 1.2, 0.35, 1);
+}
+
+nav:hover::before {
+  background: rgba(255, 255, 255, 0.09);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
+}
+
+/* Cursor-following specular glare — painted ONLY over the pill, not the track */
+nav::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 0;
+  width: var(--nav-pill-w);
+  height: calc(100% - 4px);
+  transform: translate3d(var(--nav-pill-x), 0, 0)
+             scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
+  transform-origin: center center;
+  border-radius: 999px;
+  z-index: 2;          /* above the links so blend shows */
+  pointer-events: none;
+
+  background: radial-gradient(
+    circle at var(--glare-x, 30%) var(--glare-y, 18%),
+    rgba(255, 255, 255, 0.22)  0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0.00) 75%
+  );
+  mix-blend-mode: overlay;
+
+  transition:
+    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
+    width     350ms cubic-bezier(0.25, 1.2, 0.35, 1);
+}
+
+/* Suppress transitions during drag so pill follows the pointer instantly */
+nav.nav-dragging::before,
+nav.nav-dragging::after {
+  transition: none !important;
+}
+
+nav a {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  padding: 0 16px;
+  border-radius: 999px;
+
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  white-space: nowrap;
+
+  /* No individual link glass — the pill ::before handles that */
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+
+  transition: color 180ms ease, text-shadow 180ms ease;
+}
+
+nav a:hover  { color: var(--text); }
+
+nav a.active {
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+
+/* ── Hero CTA Button ───────────────────────────────────────────────────────── */
+.hero-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  padding: 9px 18px;
+  border-radius: 999px;
+
+  background: rgba(255, 255, 255, 0.07);
+  border: none;
+  border-top: 1px solid rgba(255, 255, 255, 0.24);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+
+  /* 3-D tilt driven by --tilt-x / --tilt-y set by JS */
+  transform-style: preserve-3d;
+  perspective: 600px;
+  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
+             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(0);
+
+  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
+
+  transition:
+    transform     200ms cubic-bezier(0.25, 1, 0.5, 1),
+    background    200ms ease,
+    backdrop-filter 200ms ease,
+    -webkit-backdrop-filter 200ms ease,
+    box-shadow    200ms ease;
+}
+
+/* Cursor-following specular glare spot */
+.hero-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    circle at var(--glare-x, 30%) var(--glare-y, 20%),
+    rgba(255, 255, 255, 0.18)  0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(255, 255, 255, 0.00) 75%
+  );
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 250ms ease;
+}
+
+.hero-link:hover::after { opacity: 1; }
+
+.hero-link:hover {
+  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
+             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(3px) translateY(-1px) scale(1.03);
+  background: rgba(255, 255, 255, 0.10);
+  border-top-color: rgba(255, 255, 255, 0.30);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
+}
+
+.hero-link:active {
+  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
+             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(1px) translateY(0) scale(0.97);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
+}
+
+
+/* ── Gallery ───────────────────────────────────────────────────────────────── */
 .gallery {
   display: grid;
   grid-auto-rows: 10px;
   gap: 0;
   overflow: hidden;
-  /* Contain sub-pixel overflows */
 }
 
 .gallery img {
@@ -248,23 +424,15 @@ nav a.active {
   display: block;
   cursor: pointer;
   opacity: 0;
-  transition: opacity 600ms ease, transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  /* Removed blur as it can cause a 'pop' effect on clear */
   position: relative;
   z-index: 1;
   margin: 0;
   padding: 0;
   min-height: 0;
+  transition: opacity 600ms ease, transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.gallery img.fill-gap {
-  /* No extra styles needed; base img now handles fill/cover */
-}
-
-.gallery img.loaded {
-  opacity: 1;
-  filter: blur(0);
-}
+.gallery img.loaded { opacity: 1; }
 
 .gallery img:hover {
   opacity: 1;
@@ -272,7 +440,8 @@ nav a.active {
   z-index: 10;
 }
 
-/* ── Lightbox ─────────────────────────────────────────────────────────────── */
+
+/* ── Lightbox ──────────────────────────────────────────────────────────────── */
 #lightbox {
   position: fixed;
   inset: 0;
@@ -282,14 +451,8 @@ nav a.active {
   transition: opacity 80ms ease;
 }
 
-#lightbox:not(.hidden) {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#lightbox.hidden {
-  display: none;
-}
+#lightbox:not(.hidden) { opacity: 1; pointer-events: auto; }
+#lightbox.hidden        { display: none; }
 
 #lightbox::before {
   content: "";
@@ -305,56 +468,39 @@ nav a.active {
   top: 20px;
   right: 22px;
   z-index: 110;
-
   width: 34px;
   height: 34px;
   padding: 0;
   border: 0;
   border-radius: 999px;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
   background: transparent;
   color: rgba(255, 255, 255, 0.48);
   font-size: 1.55rem;
   line-height: 1;
   cursor: pointer;
-
   opacity: 0.8;
-
   transition:
-    color 160ms ease,
-    background 160ms ease,
-    border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease,
-    opacity 160ms ease;
+    color 160ms ease, background 160ms ease,
+    border-color 160ms ease, box-shadow 160ms ease,
+    transform 160ms ease, opacity 160ms ease;
 }
 
 .lightbox-close:hover,
 .lightbox-close:focus-visible {
   opacity: 1;
   color: rgba(255, 255, 255, 0.9);
-
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.035));
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.035));
   border: 1px solid rgba(255, 255, 255, 0.10);
-
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
-
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 6px 18px rgba(0, 0, 0, 0.16);
-
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 6px 18px rgba(0, 0, 0, 0.16);
   transform: scale(1.03);
 }
 
-.lightbox-close:active {
-  transform: scale(0.94);
-}
+.lightbox-close:active { transform: scale(0.94); }
 
 #lightbox-slider {
   display: flex;
@@ -382,12 +528,16 @@ nav a.active {
   justify-content: center;
   will-change: transform;
   touch-action: none;
+  transition: transform 150ms ease-out;
 }
+
+.lightbox-img-wrapper .lightbox-full { transition: opacity 250ms ease-out; }
+.lightbox-img-wrapper.swiping        { transition: none !important; }
+.lightbox-img-wrapper.dismissing     { transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease !important; }
 
 .lightbox-img-wrapper img {
   position: absolute;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -397,32 +547,20 @@ nav a.active {
   visibility: hidden;
 }
 
-.lightbox-img-wrapper img.lightbox-full {
-  z-index: 3;
-}
-
-.lightbox-img-wrapper img.ready {
-  opacity: 1;
-  visibility: visible;
-}
-
-.lightbox-img-wrapper img.is-thumb {
-  filter: none;
-}
+.lightbox-img-wrapper img.lightbox-full { z-index: 3; }
+.lightbox-img-wrapper img.ready         { opacity: 1; visibility: visible; }
+.lightbox-img-wrapper img.is-thumb      { filter: none; }
 
 .lightbox-caption {
   position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  padding: 40px 24px 24px 24px;
-  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 100%);
+  bottom: 0; left: 0; right: 0;
+  padding: 40px 24px 24px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5) 0%, transparent 100%);
   display: flex;
   flex-direction: column;
   pointer-events: none;
   z-index: 10;
   color: rgba(255, 255, 255, 0.9);
-  /* Start hidden — caption-animate owns the full opacity journey via its fill-mode */
   opacity: 0;
 }
 
@@ -440,17 +578,9 @@ nav a.active {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
-/* ── Lightbox caption entrance animation ─────────────────────────────────── */
 @keyframes lightbox-caption-in {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .lightbox-caption.caption-animate {
@@ -463,19 +593,25 @@ nav a.active {
   }
 
   @keyframes lightbox-caption-fade-only {
-    from {
-      opacity: 0;
-    }
-
-    to {
-      opacity: 1;
-    }
+    from { opacity: 0; }
+    to   { opacity: 1; }
   }
 }
 
+.lightbox-counter {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 110;
+  color: var(--muted);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  font-family: system-ui, -apple-system, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}
 
-
-/* Clone that animates from thumbnail position to centre — uses CSS transitions */
+/* Clone hero-to-lightbox transition */
 .lightbox-clone {
   position: fixed;
   margin: 0;
@@ -484,41 +620,56 @@ nav a.active {
   pointer-events: none;
   will-change: top, left, width, height, opacity;
   transition:
-    top 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    left 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 420ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 420ms cubic-bezier(0.22, 1, 0.36, 1),
+    top     420ms cubic-bezier(0.22, 1, 0.36, 1),
+    left    420ms cubic-bezier(0.22, 1, 0.36, 1),
+    width   420ms cubic-bezier(0.22, 1, 0.36, 1),
+    height  420ms cubic-bezier(0.22, 1, 0.36, 1),
     opacity 220ms ease-out;
 }
 
-/* ── About page ───────────────────────────────────────────────────────────── */
+
+/* ── About Page ────────────────────────────────────────────────────────────── */
 .about-page {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  background: var(--bg);
 }
 
 .about-content {
   flex: 1;
   padding: calc(var(--header-h) + 60px) 22px 80px;
-  max-width: 640px;
+  max-width: 660px;
 }
 
+/* Profile card — liquid glass style matching the nav pill */
 .about-profile-img {
-  width: 140px;
-  height: 140px;
+  width: 128px;
+  height: 128px;
   flex-shrink: 0;
   display: block;
   object-fit: cover;
   border-radius: 50%;
-  filter: brightness(0.94);
+  filter: brightness(0.92);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
 }
 
 .about-header {
   display: flex;
   align-items: flex-start;
-  gap: 32px;
-  margin-bottom: 36px;
+  gap: 36px;
+  margin-bottom: 40px;
+  padding: 28px;
+  border-radius: 18px;
+
+  /* Liquid glass card */
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px) saturate(130%) brightness(1.02);
+  -webkit-backdrop-filter: blur(12px) saturate(130%) brightness(1.02);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.20);
 }
 
 .about-text-col {
@@ -529,17 +680,18 @@ nav a.active {
 }
 
 .about-name {
-  font-size: clamp(1.4rem, 4vw, 2.2rem);
-  font-weight: 500;
-  letter-spacing: -0.04em;
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
   line-height: 1.05;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  color: var(--text);
 }
 
 .about-text {
   color: var(--muted);
-  font-size: 1rem;
-  line-height: 1.72;
+  font-size: 0.95rem;
+  line-height: 1.75;
   margin-bottom: 36px;
   white-space: pre-wrap;
 }
@@ -551,105 +703,36 @@ nav a.active {
 }
 
 .about-links a {
-  color: var(--muted);
+  display: inline-flex;
+  align-items: center;
+  color: rgba(243, 243, 240, 0.70);
   text-decoration: none;
-  font-size: 0.9rem;
-  border-bottom: 1px solid rgba(243, 243, 240, 0.25);
-  padding-bottom: 3px;
-  transition: color 180ms ease, border-color 180ms ease;
+  font-size: 0.82rem;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  padding: 6px 14px;
+  border-radius: 999px;
+
+  /* Small liquid glass pill — matches nav family */
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-top-color: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+  transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
 }
 
 .about-links a:hover {
   color: var(--text);
-  border-color: rgba(243, 243, 240, 0.6);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  border-top-color: rgba(255, 255, 255, 0.26);
 }
 
 
-/* ── Professional Animations ─────────────────────────────────────────── */
-.reveal {
-  opacity: 0;
-  transform: translateY(8px);
-  animation: revealIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-@keyframes revealIn {
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.page-fade-out .hero,
-.page-fade-out main,
-.page-fade-out .about-page,
-.page-fade-out footer {
-  opacity: 0;
-}
-
-/* ── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 1000px) {
-  /* script.js handles col count */
-}
-
-@media (max-width: 700px) {
-  header {
-    padding: 14px 16px;
-  }
-
-  header h1 {
-    font-size: 0.68rem;
-  }
-
-  nav {
-    max-width: none;
-    overflow: visible;
-    flex-wrap: nowrap;
-  }
-
-  nav a {
-    font-size: 0.75rem;
-    min-height: 26px;
-    padding: 0 10px;
-  }
-
-  .hero-overlay {
-    padding: 0 16px 52px;
-  }
-
-  .about-content {
-    padding: calc(var(--header-h) + 32px) 14px 60px;
-  }
-
-  .lightbox-close {
-    top: 14px;
-    right: 14px;
-    width: 34px;
-    height: 34px;
-    font-size: 1.4rem;
-    color: rgba(255, 255, 255, 0.58);
-  }
-}
-
-/* ── Footer ───────────────────────────────────────────────────────────── */
-footer {
-  padding: 80px 22px 40px;
-  border-top: 1px solid rgba(243, 243, 240, 0.05);
-  margin-top: 60px;
-}
-
-.footer-content {
-  max-width: 640px;
-  margin: 0 auto;
-  text-align: center;
-}
-
-.footer-text {
-  color: var(--muted);
-  font-size: 0.85rem;
-  letter-spacing: 0.02em;
-}
-
-/* ── Contact Form ──────────────────────────────────────────────────────── */
+/* ── Contact Form ──────────────────────────────────────────────────────────── */
 .contact-form {
   margin-top: 60px;
   max-width: 480px;
@@ -673,104 +756,80 @@ footer {
 .contact-form textarea {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(243, 243, 240, 0.12);
-  border-radius: 4px;
+  border-radius: 6px;
   color: var(--text);
   padding: 12px;
   font-family: inherit;
   font-size: 0.95rem;
-  transition: border-color 200ms ease;
+  transition: border-color 200ms ease, background 200ms ease;
 }
 
 .contact-form input:focus,
 .contact-form textarea:focus {
   outline: none;
-  border-color: rgba(243, 243, 240, 0.4);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(243, 243, 240, 0.30);
 }
 
 .contact-form .btn-submit {
-  background: var(--text);
+  background: rgba(255, 255, 255, 0.90);
   color: var(--bg);
   border: none;
-  padding: 12px 24px;
-  border-radius: 4px;
-  font-weight: 600;
+  padding: 11px 24px;
+  border-radius: 999px;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
   cursor: pointer;
-  transition: opacity 200ms ease;
+  transition: opacity 200ms ease, transform 150ms ease;
 }
 
-.contact-form .btn-submit:hover {
-  opacity: 0.9;
+.contact-form .btn-submit:hover   { opacity: 0.88; transform: translateY(-1px); }
+.contact-form .btn-submit:active  { transform: translateY(0); opacity: 0.78; }
+.contact-form .btn-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+#form-status { margin-top: 16px; font-size: 0.9rem; }
+#form-status.success { color: #4ade80; }
+#form-status.error   { color: #f87171; }
+
+
+/* ── Footer ────────────────────────────────────────────────────────────────── */
+footer {
+  padding: 80px 22px 40px;
+  border-top: 1px solid rgba(243, 243, 240, 0.05);
+  margin-top: 60px;
 }
 
-.contact-form .btn-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.footer-content {
+  max-width: 640px;
+  margin: 0 auto;
+  text-align: center;
 }
 
-#form-status {
-  margin-top: 16px;
-  font-size: 0.9rem;
-}
-
-#form-status.success {
-  color: #4ade80;
-}
-
-#form-status.error {
-  color: #f87171;
-}
-
-/* ── Ken Burns Slideshow Effect ───────────────────────────────────────────── */
-.hero-slide.active img,
-.hero-slide.last-active img {
-  animation: kenburns 10s ease-out forwards;
-}
-
-@keyframes kenburns {
-  0% {
-    transform: scale(1.02) translate(0, 0);
-  }
-
-  100% {
-    transform: scale(1.06) translate(0.5%, -0.3%);
-  }
-}
-
-/* ── Lightbox Counter & Swipe Transitions ────────────────────────────────── */
-.lightbox-counter {
-  position: absolute;
-  top: 24px;
-  left: 24px;
-  z-index: 110;
+.footer-text {
   color: var(--muted);
   font-size: 0.85rem;
-  letter-spacing: 0.05em;
-  font-family: system-ui, -apple-system, sans-serif;
-  user-select: none;
-  pointer-events: none;
+  letter-spacing: 0.02em;
 }
 
-.lightbox-img-wrapper {
-  transition: transform 150ms ease-out;
+
+/* ── Animations ────────────────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(8px);
+  animation: revealIn 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.lightbox-img-wrapper .lightbox-full {
-  transition: opacity 250ms ease-out;
+@keyframes revealIn {
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.lightbox-img-wrapper.swiping {
-  transition: none !important;
-}
-
-.lightbox-img-wrapper.dismissing {
-  transition: transform 300ms cubic-bezier(0.22, 1, 0.36, 1), opacity 300ms ease !important;
-}
-
-/* ── Scroll-Triggered Reveals ─────────────────────────────────────────────── */
+/* Scroll-triggered reveal */
 .reveal-on-scroll {
   opacity: 0 !important;
   transform: translateY(24px) scale(0.985);
-  transition: opacity 800ms cubic-bezier(0.16, 1, 0.3, 1),
+  transition:
+    opacity   800ms cubic-bezier(0.16, 1, 0.3, 1),
     transform 800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
@@ -785,251 +844,169 @@ footer {
 }
 
 
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  header {
+    padding: 14px 16px;
+  }
 
-/* ── Subtle glass UI polish ─────────────────────────────────────────────── */
+  header h1 {
+    font-size: 0.68rem;
+  }
 
-:root {
-  --soft-glass-bg: rgba(255, 255, 255, 0.045);
-  --soft-glass-bg-hover: rgba(255, 255, 255, 0.075);
-  --soft-glass-border: rgba(255, 255, 255, 0.11);
-  --soft-glass-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  nav a {
+    font-size: 0.75rem;
+    min-height: 26px;
+    padding: 0 10px;
+  }
+
+  .hero-overlay {
+    padding: 0 16px 52px;
+  }
+
+  .about-header {
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+  }
+
+  .about-content {
+    padding: calc(var(--header-h) + 32px) 14px 60px;
+  }
+
+  .lightbox-close {
+    top: 14px;
+    right: 14px;
+    width: 34px;
+    height: 34px;
+    font-size: 1.4rem;
+    color: rgba(255, 255, 255, 0.58);
+  }
 }
 
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Adaptive Contrast Tiers
+   Applied by contrast.js — toggles ui-on-mid / ui-on-light on <header>
+   and .hero-link based on canvas luminance sampling of the active hero.
+   Only shadows, glass fill, and blur are adjusted; layout is untouched.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Liquid segmented nav ─────────────────────────────────────────────── */
+/* ui-on-dark: default transparent style — no overrides needed */
 
-nav {
-  --nav-pill-x: 3px;
-  --nav-pill-w: 0px;
-
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  padding: 3px;
-  border-radius: 999px;
-  isolation: isolate;
-  flex-shrink: 0;
-  touch-action: pan-y;
-  pointer-events: auto;
-
-  /* Invisible track — just a barely-there outline */
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-}
-
-nav::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 0;
-  width: var(--nav-pill-w);
-  height: calc(100% - 4px);
-  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
-  transform-origin: center center;
-  border-radius: 999px;
-  z-index: 0;
-  pointer-events: none;
-
-  /* Nearly invisible fill — just a whisper of white to act as glass tint */
-  background: rgba(255, 255, 255, 0.06);
-
-  /* Single hairline top highlight — the only visible edge */
-  border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
-
-  /* Low blur so the background image is clearly visible through the glass */
-  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-
-  /* Very subtle drop shadow only — no inset embossing */
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-
-  transition:
-    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
-    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
-}
-
-nav:hover::before {
-  background: rgba(255, 255, 255, 0.09);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
-}
-
-nav::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 0;
-  width: var(--nav-pill-w);
-  height: calc(100% - 4px);
-  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
-  transform-origin: center center;
-  border-radius: 999px;
-  z-index: 0;
-  pointer-events: none;
-
-  /* Specular Glare Reflection - Dynamic tracking with cursor or drag */
-  background:
-    radial-gradient(circle at var(--glare-x, var(--nav-pill-glare-x, 30%)) var(--glare-y, 15%),
-      rgba(255, 255, 255, 0.25) 0%,
-      rgba(255, 255, 255, 0.04) 50%,
-      rgba(255, 255, 255, 0) 80%);
-  mix-blend-mode: overlay;
-
-  transition:
-    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
-    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
-}
-
-nav.nav-dragging::before,
-nav.nav-dragging::after {
-  transition: none !important;
-}
-
-nav a {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 28px;
-  padding: 0 16px;
-  border-radius: 999px;
-
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  white-space: nowrap;
-
-  background: transparent !important;
-  border: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-
-  transition: color 180ms ease, text-shadow 180ms ease;
-}
-
-nav a:hover {
-  color: var(--text);
-}
-
-nav a.active {
+/* ui-on-mid: grey / mid-tone hero backgrounds */
+header.ui-on-mid h1 {
   color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.70),
+    0 2px 12px rgba(0, 0, 0, 0.45),
+    0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* Hero View button */
-.hero-link {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+header.ui-on-mid nav {
+  border-color: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25);
+}
+
+header.ui-on-mid nav::before {
+  background: rgba(0, 0, 0, 0.18);
+  border-top-color: rgba(255, 255, 255, 0.24);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
+  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.30);
+}
+
+header.ui-on-mid nav a {
+  color: rgba(255, 255, 255, 0.88);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.40);
+}
+
+header.ui-on-mid nav a.active {
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
+}
+
+.hero-link.ui-on-mid {
+  background: rgba(0, 0, 0, 0.22);
+  border-top-color: rgba(255, 255, 255, 0.26);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
+  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.32);
+  color: #ffffff;
+}
+
+/* ui-on-light: washed / near-white hero backgrounds */
+header.ui-on-light h1 {
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.80),
+    0 2px 10px rgba(0, 0, 0, 0.60),
+    0 4px 28px rgba(0, 0, 0, 0.40);
+}
+
+header.ui-on-light nav {
+  border-color: rgba(255, 255, 255, 0.22);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
+}
+
+header.ui-on-light nav::before {
+  background: rgba(0, 0, 0, 0.32);
+  border-top-color: rgba(255, 255, 255, 0.20);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.82);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.82);
+  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.40);
+}
+
+header.ui-on-light nav a {
   color: rgba(255, 255, 255, 0.92);
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  padding: 9px 18px;
-  border-radius: 999px;
-
-  /* Barely-there fill — the image shows through */
-  background: rgba(255, 255, 255, 0.07);
-
-  /* Single hairline top highlight, faint bottom edge */
-  border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.24);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-
-  /* 3D tilt */
-  transform-style: preserve-3d;
-  perspective: 600px;
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg)) rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(0);
-
-  /* Low blur — keeps background image visible through glass */
-  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-
-  /* No inset embossing — just a clean drop shadow */
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
-
-  transition:
-    transform 200ms cubic-bezier(0.25, 1, 0.5, 1),
-    background 200ms ease,
-    backdrop-filter 200ms ease,
-    -webkit-backdrop-filter 200ms ease,
-    box-shadow 200ms ease;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 }
 
-.hero-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 1;
-  /* Cursor-following specular glare */
-  background: radial-gradient(circle at var(--glare-x, 30%) var(--glare-y, 20%),
-      rgba(255, 255, 255, 0.18) 0%,
-      rgba(255, 255, 255, 0.04) 45%,
-      rgba(255, 255, 255, 0) 75%);
-  mix-blend-mode: screen;
-  opacity: 0;
-  transition: opacity 250ms ease;
+header.ui-on-light nav a.active {
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.70);
 }
 
-.hero-link:hover::after {
-  opacity: 1;
+.hero-link.ui-on-light {
+  background: rgba(0, 0, 0, 0.38);
+  border-top-color: rgba(255, 255, 255, 0.18);
+  backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.84);
+  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.84);
+  box-shadow: 0 3px 26px rgba(0, 0, 0, 0.40);
+  color: #ffffff;
 }
 
-.hero-link:hover {
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg)) rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(3px) translateY(-1px) scale(1.03);
-  background: rgba(255, 255, 255, 0.10);
-  border-top-color: rgba(255, 255, 255, 0.30);
 
-  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
+/* ══════════════════════════════════════════════════════════════════════════
+   HARD OVERRIDE — Invisible header container
+   Ensures no browser default, cached, or injected rule can produce a visible
+   grey bar above the hero. Only the name (h1) and nav pill are visible.
+   Must stay at the very bottom of this file so specificity wins.
+   ══════════════════════════════════════════════════════════════════════════ */
 
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
-}
-
-.hero-link:active {
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg)) rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(1px) translateY(0) scale(0.97);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
-}
-
-/* ── Invisible top header: only name + nav visible ───────────────────── */
-
-header {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
-}
-
+header,
 header.scrolled {
-  background: transparent !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: 0 !important;
-  box-shadow: none !important;
+  background:        transparent !important;
+  backdrop-filter:   none        !important;
+  -webkit-backdrop-filter: none  !important;
+  border:            0           !important;
+  box-shadow:        none        !important;
 }
 
-/* Remove any previous top gradient/blur layer */
+/* Strip any pseudo-element layers on the header itself */
 header::before,
 header::after {
-  content: none !important;
-  display: none !important;
+  content: none    !important;
+  display: none    !important;
+}
+
+/* Keep the name and nav interactive even though the container has none */
+header h1,
+header h1 a,
+nav {
+  pointer-events: auto;
 }

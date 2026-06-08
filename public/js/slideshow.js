@@ -374,6 +374,9 @@ export function nextHeroSlide() {
   
   nextSlide.classList.add('active');
 
+  // Notify the adaptive contrast system that the active slide changed
+  document.dispatchEvent(new CustomEvent('hero:slide-changed'));
+
   // Predictive Preloading: Load standard image for the slide AFTER the next one
   // so it is cached and ready before the transition (Rule 8)
   const preloadIndex = (state.heroIndex + 1) % state.heroSlides.length;

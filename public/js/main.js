@@ -5,6 +5,7 @@ import { renderGallery } from './gallery.js';
 import { renderLightboxSlides } from './lightbox.js';
 import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
+import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
 
 // Local variables in main scope
 let siteConfigCache = null;
@@ -30,6 +31,9 @@ if ('scrollRestoration' in history) {
   history.scrollRestoration = 'manual';
 }
 window.scrollTo(0, 0);
+
+// Register the adaptive contrast slide-changed listener once at module load
+initAdaptiveContrast();
 
 /**
  * Bootstraps the application, loading the site configuration and section images.
@@ -94,6 +98,9 @@ export async function initPage() {
 
   // Asynchronous page view logging
   logAnalyticsEvent('page_view', isAbout ? 'about' : state.section);
+
+  // Re-sample hero brightness after each page/section load
+  scheduleContrastEval(700);
 }
 
 /**
