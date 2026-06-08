@@ -3,14 +3,9 @@
 import { state, dom, logImageLoad } from './state.js';
 
 /**
- * Initialises the hero slideshow. Reuses server-side pre-rendered slides if available
- * for instant paint, falling back to client-side DOM creation.
- * @param {Array<Object>} heroes - Array of hero image data objects
+ * Cleanly cancels all background slideshow processes, observers, and event listeners.
  */
-export function initHeroSlideshow(heroes) {
-  if (!dom.heroMedia) return;
-  
-  // Idempotency check: Clean up any existing slideshow interval or observers
+export function cleanupHeroSlideshow() {
   if (state.heroTimer) {
     clearInterval(state.heroTimer);
     state.heroTimer = null;
@@ -19,6 +14,33 @@ export function initHeroSlideshow(heroes) {
     state.heroObserver.disconnect();
     state.heroObserver = null;
   }
+  if (state.heroTimeouts) {
+    state.heroTimeouts.forEach(clearTimeout);
+    state.heroTimeouts = [];
+  }
+  if (state.heroAbortController) {
+    state.heroAbortController.abort();
+    state.heroAbortController = null;
+  }
+}
+
+/**
+ * Initialises the hero slideshow. Reuses server-side pre-rendered slides if available
+ * for instant paint, falling back to client-side DOM creation.
+ * @param {Array<Object>} heroes - Array of hero image data objects
+ */
+export function initHeroSlideshow(heroes) {
+  if (!dom.heroMedia) return;
+  
+  try {
+    console.log('[Image Diagnostic] Debug initHeroSlideshow: heroes.length=' + heroes.length + ' heroIndex=' + state.heroIndex);
+
+    // Idempotency check: Clean up any existing slideshow interval or observers
+  cleanupHeroSlideshow();
+
+  // Create a new abort controller for this slideshow run
+  state.heroAbortController = new AbortController();
+  const { signal } = state.heroAbortController;
 
   // Use server-provided index if available for consistency with preloading
   if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number') {
@@ -64,7 +86,7 @@ export function initHeroSlideshow(heroes) {
       // Bind listeners idempotently
       if (img.dataset.listenersBound !== 'true') {
         img.dataset.listenersBound = 'true';
-        img.addEventListener('error', handleImgError, { once: true });
+        img.addEventListener('error', handleImgError, { once: true, signal });
         if (img.complete && img.naturalWidth === 0) {
           handleImgError();
         }
@@ -95,20 +117,28 @@ export function initHeroSlideshow(heroes) {
         };
 
         // Remove the loading blur as soon as the standard thumbnail is complete/decoded
-        if (img.complete && img.naturalWidth > 0) {
-          removeBlur();
+        if (img.complete) {
+          if (img.naturalWidth > 0) {
+            removeBlur();
+          } else if (typeof img.decode === 'function') {
+            img.decode().then(removeBlur).catch(removeBlur);
+          } else {
+            removeBlur();
+          }
         } else {
-          img.addEventListener('load', removeBlur, { once: true });
-          img.addEventListener('error', removeBlur, { once: true });
+          img.addEventListener('load', removeBlur, { once: true, signal });
+          img.addEventListener('error', removeBlur, { once: true, signal });
           if (typeof img.decode === 'function') {
             img.decode().then(removeBlur).catch(removeBlur);
           }
           // Failsafe timeout: 2 seconds
-          setTimeout(removeBlur, 2000);
+          const failsafeTimeoutId = setTimeout(removeBlur, 2000);
+          state.heroTimeouts.push(failsafeTimeoutId);
         }
 
         // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
         const isMobile = window.innerWidth <= 768;
+        console.log('[Image Diagnostic] loadFullRes entry reuse: isMobile=' + isMobile + ' innerWidth=' + window.innerWidth);
         if (isMobile) {
           return;
         }
@@ -119,10 +149,10 @@ export function initHeroSlideshow(heroes) {
 
         // Only upgrade the currently active desktop hero image
         // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
-        // This ensures that fast-swiping users or immediate scrolls don't waste bandwidth.
         const delay = 800;
-        setTimeout(() => {
+        const upgradeTimeoutId = setTimeout(() => {
           const currentMobile = window.innerWidth <= 768;
+          console.log('[Image Diagnostic] Debug reuse: i=' + i + ' heroIndex=' + state.heroIndex + ' heroIsVisible=' + state.heroIsVisible + ' isMobile=' + currentMobile);
           if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
             return;
           }
@@ -147,6 +177,7 @@ export function initHeroSlideshow(heroes) {
           };
           full.src = h.full_url;
         }, delay);
+        state.heroTimeouts.push(upgradeTimeoutId);
       };
 
       div.loadSlideImage = loadSlideImage;
@@ -183,7 +214,7 @@ export function initHeroSlideshow(heroes) {
         img.removeAttribute('srcset');
         img.src = h.thumb_url;
       };
-      img.addEventListener('error', handleImgError, { once: true });
+      img.addEventListener('error', handleImgError, { once: true, signal });
       img.dataset.listenersBound = 'true';
 
       div.appendChild(img);
@@ -207,20 +238,28 @@ export function initHeroSlideshow(heroes) {
           img.classList.remove('loading');
         };
 
-        if (img.complete && img.naturalWidth > 0) {
-          removeBlur();
+        if (img.complete) {
+          if (img.naturalWidth > 0) {
+            removeBlur();
+          } else if (typeof img.decode === 'function') {
+            img.decode().then(removeBlur).catch(removeBlur);
+          } else {
+            removeBlur();
+          }
         } else {
-          img.addEventListener('load', removeBlur, { once: true });
-          img.addEventListener('error', removeBlur, { once: true });
+          img.addEventListener('load', removeBlur, { once: true, signal });
+          img.addEventListener('error', removeBlur, { once: true, signal });
           if (typeof img.decode === 'function') {
             img.decode().then(removeBlur).catch(removeBlur);
           }
           // Failsafe timeout: 2 seconds
-          setTimeout(removeBlur, 2000);
+          const failsafeTimeoutId = setTimeout(removeBlur, 2000);
+          state.heroTimeouts.push(failsafeTimeoutId);
         }
 
         // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
         const isMobile = window.innerWidth <= 768;
+        console.log('[Image Diagnostic] loadFullRes entry fallback: isMobile=' + isMobile + ' innerWidth=' + window.innerWidth);
         if (isMobile) {
           return;
         }
@@ -232,8 +271,9 @@ export function initHeroSlideshow(heroes) {
         // Only upgrade the currently active desktop hero image
         // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
         const delay = 800;
-        setTimeout(() => {
+        const upgradeTimeoutId = setTimeout(() => {
           const currentMobile = window.innerWidth <= 768;
+          console.log('[Image Diagnostic] Debug fallback: i=' + i + ' heroIndex=' + state.heroIndex + ' heroIsVisible=' + state.heroIsVisible + ' isMobile=' + currentMobile);
           if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
             return;
           }
@@ -258,6 +298,7 @@ export function initHeroSlideshow(heroes) {
           };
           full.src = h.full_url;
         }, delay);
+        state.heroTimeouts.push(upgradeTimeoutId);
       };
 
       div.loadSlideImage = loadSlideImage;
@@ -270,14 +311,18 @@ export function initHeroSlideshow(heroes) {
     });
   }
 
-  // Ensure active slide is shown
-  if (state.heroSlides[state.heroIndex]) {
-    state.heroSlides[state.heroIndex].classList.add('active');
-  }
+  // Cleanly reset active and last-active classes on all slides, showing only the active one
+  state.heroSlides.forEach((slide, idx) => {
+    if (idx === state.heroIndex) {
+      slide.classList.remove('last-active');
+      slide.classList.add('active');
+    } else {
+      slide.classList.remove('active', 'last-active');
+    }
+  });
 
   // Set up slide transition timer loop
   if (state.heroSlides.length > 1) {
-    if (state.heroTimer) clearInterval(state.heroTimer);
     state.heroTimer = setInterval(() => {
       if (state.heroIsVisible) nextHeroSlide();
     }, 5000);
@@ -286,11 +331,14 @@ export function initHeroSlideshow(heroes) {
   // IntersectionObserver to pause the transition interval loop when hero is scrolled out of view
   const heroSection = document.querySelector('.hero');
   if (heroSection) {
-    if (state.heroObserver) state.heroObserver.disconnect();
     state.heroObserver = new IntersectionObserver((entries) => {
       state.heroIsVisible = entries[0].isIntersecting && entries[0].intersectionRatio >= 0.25;
     }, { threshold: [0.25] });
     state.heroObserver.observe(heroSection);
+  }
+
+  } catch (err) {
+    console.error('[Image Diagnostic] CRASH in initHeroSlideshow:', err.message, err.stack);
   }
 }
 
@@ -305,9 +353,10 @@ export function nextHeroSlide() {
   oldSlide.classList.remove('active');
   
   // Remove last-active class after fade-out transition completes (2000ms buffer)
-  setTimeout(() => {
+  const fadeTimeoutId = setTimeout(() => {
     oldSlide.classList.remove('last-active');
   }, 2000);
+  state.heroTimeouts.push(fadeTimeoutId);
 
   state.heroIndex = (state.heroIndex + 1) % state.heroSlides.length;
   
@@ -333,5 +382,6 @@ export function nextHeroSlide() {
     preloadSlide.loadSlideImage();
   }
 }
+
 
 

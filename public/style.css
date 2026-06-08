@@ -818,32 +818,55 @@ nav::before {
   left: 0;
   width: var(--nav-pill-w);
   height: calc(100% - 6px);
-  transform: translate3d(var(--nav-pill-x), 0, 0);
+  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
+  transform-origin: center center;
   border-radius: 999px;
   z-index: 0;
   pointer-events: none;
 
   background:
-    radial-gradient(circle at 30% 12%, rgba(255, 255, 255, 0.34), transparent 34%),
-    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.055));
+    linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%),
+    rgba(10, 10, 10, 0.42);
 
-  border: 1px solid rgba(255, 255, 255, 0.13);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
 
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.06),
-    0 8px 24px rgba(0, 0, 0, 0.18);
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.05),
+    0 8px 24px rgba(0, 0, 0, 0.32);
 
   transition:
-    transform 460ms cubic-bezier(0.22, 1, 0.36, 1),
-    width 460ms cubic-bezier(0.22, 1, 0.36, 1);
+    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
+    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
 }
 
-nav.nav-dragging::before {
-  transition: none;
+nav::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: var(--nav-pill-w);
+  height: calc(100% - 6px);
+  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
+  transform-origin: center center;
+  border-radius: 999px;
+  z-index: 0;
+  pointer-events: none;
+
+  background: radial-gradient(circle at var(--nav-pill-glare-x, 30%) 15%, rgba(255, 255, 255, 0.36), transparent 45%);
+  mix-blend-mode: overlay;
+
+  transition:
+    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
+    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
+}
+
+nav.nav-dragging::before,
+nav.nav-dragging::after {
+  transition: none !important;
 }
 
 nav a {

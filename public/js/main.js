@@ -3,7 +3,7 @@
 import { logAnalyticsEvent } from './analytics.js';
 import { renderGallery } from './gallery.js';
 import { renderLightboxSlides } from './lightbox.js';
-import { initHeroSlideshow } from './slideshow.js';
+import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
 
 // Local variables in main scope
@@ -48,7 +48,7 @@ export async function initPage() {
     setupNavPrefetch();
     setupLiquidNavDrag();
 
-    requestAnimationFrame(updateLiquidNavPill);
+    updateLiquidNavPill(true);
   } catch (err) {
     console.warn('[config] Failed to load site config, using defaults', err);
     applyFallbackNav();
@@ -147,14 +147,27 @@ function setupNavPrefetch() {
 let navPointer = null;
 let suppressNextNavClick = false;
 
-function updateLiquidNavPill() {
+function updateLiquidNavPill(noTransition = false) {
   const nav = dom.siteNav || document.querySelector('nav');
   const activeLink = nav?.querySelector('a.active');
 
   if (!nav || !activeLink) return;
 
+  if (noTransition) {
+    nav.classList.add('nav-dragging');
+  }
+
   nav.style.setProperty('--nav-pill-x', `${activeLink.offsetLeft}px`);
   nav.style.setProperty('--nav-pill-w', `${activeLink.offsetWidth}px`);
+  nav.style.setProperty('--nav-pill-scale-x', '1');
+  nav.style.setProperty('--nav-pill-scale-y', '1');
+  nav.style.setProperty('--nav-pill-glare-x', '30%');
+
+  if (noTransition) {
+    // Force a style/layout reflow
+    nav.offsetHeight;
+    nav.classList.remove('nav-dragging');
+  }
 }
 
 function setActiveNavLink(link) {
@@ -196,7 +209,7 @@ async function goToNavLink(link) {
   setActiveNavLink(link);
 
   if (targetBase === currentBase) {
-    requestAnimationFrame(updateLiquidNavPill);
+    requestAnimationFrame(() => updateLiquidNavPill(false));
     return;
   }
 
@@ -205,22 +218,7 @@ async function goToNavLink(link) {
 
   await handleRoute(link.href);
 
-  requestAnimationFrame(updateLiquidNavPill);
-}
-
-function movePillToPointer(nav, clientX) {
-  const navRect = nav.getBoundingClientRect();
-  const closestLink = getClosestNavLink(nav, clientX);
-
-  const width = closestLink?.offsetWidth ||
-    parseFloat(getComputedStyle(nav).getPropertyValue('--nav-pill-w')) ||
-    48;
-
-  let x = clientX - navRect.left - width / 2;
-  x = Math.max(3, Math.min(x, nav.offsetWidth - width - 3));
-
-  nav.style.setProperty('--nav-pill-x', `${x}px`);
-  nav.style.setProperty('--nav-pill-w', `${width}px`);
+  requestAnimationFrame(() => updateLiquidNavPill(false));
 }
 
 function setupLiquidNavDrag() {
@@ -235,11 +233,14 @@ function setupLiquidNavDrag() {
     const targetLink = e.target.closest('a');
     if (!targetLink) return;
 
+    const activeLink = nav.querySelector('a.active') || targetLink;
+
     navPointer = {
       id: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
-      startLink: targetLink,
+      startLink: activeLink,
+      targetLink: targetLink,
       didDrag: false,
     };
 
@@ -249,63 +250,116 @@ function setupLiquidNavDrag() {
   nav.addEventListener('pointermove', (e) => {
     if (!navPointer || navPointer.id !== e.pointerId) return;
 
-    const dx = Math.abs(e.clientX - navPointer.startX);
-    const dy = Math.abs(e.clientY - navPointer.startY);
+    const rawDx = e.clientX - navPointer.startX;
+    const rawDy = e.clientY - navPointer.startY;
 
-    if (!navPointer.didDrag && dx < 5 && dy < 5) return;
+    if (!navPointer.didDrag && Math.abs(rawDx) < 5 && Math.abs(rawDy) < 5) return;
 
     navPointer.didDrag = true;
     nav.classList.add('nav-dragging');
 
-    movePillToPointer(nav, e.clientX);
+    // Tactile logarithmic/rubber-band damping on pointer displacement
+    const dx = Math.sign(rawDx) * Math.log1p(Math.abs(rawDx) * 0.02) * 25;
+
+    const navRect = nav.getBoundingClientRect();
+    const startLink = navPointer.startLink;
+    const startX = startLink.offsetLeft;
+    const startW = startLink.offsetWidth;
+
+    // Distort pill width and position based on direction of drag
+    let L, R;
+    if (dx >= 0) {
+      L = startX + dx * 0.15;
+      R = startX + startW + dx * 0.85;
+    } else {
+      L = startX + dx * 0.85;
+      R = startX + startW + dx * 0.15;
+    }
+
+    // Constraints to maintain layout bounds
+    L = Math.max(3, L);
+    R = Math.min(nav.offsetWidth - 3, R);
+    const W = Math.max(startW * 0.9, R - L);
+    const X = L;
+
+    // Calculate visual stretch amount, clamped subtly to scaleX [0.96, 1.08] and scaleY [0.96, 1.02]
+    const stretch = (W - startW) / startW;
+    let scaleX, scaleY;
+    if (stretch >= 0) {
+      scaleX = 1 + Math.min(stretch, 0.08);
+      scaleY = 1 - Math.min(stretch * 0.5, 0.04);
+    } else {
+      scaleX = 1 + Math.max(stretch, -0.04);
+      scaleY = 1 - Math.max(stretch * 0.5, -0.02);
+    }
+    const clampedScaleX = Math.max(0.96, Math.min(1.08, scaleX));
+    const clampedScaleY = Math.max(0.96, Math.min(1.02, scaleY));
+
+    // Calculate dynamic glare shift (radial gradient light source reflection movement)
+    const glareX = Math.max(10, Math.min(50, 30 + (dx / startW) * 20));
+
+    nav.style.setProperty('--nav-pill-x', `${X}px`);
+    nav.style.setProperty('--nav-pill-w', `${W}px`);
+    nav.style.setProperty('--nav-pill-scale-x', `${clampedScaleX}`);
+    nav.style.setProperty('--nav-pill-scale-y', `${clampedScaleY}`);
+    nav.style.setProperty('--nav-pill-glare-x', `${glareX}%`);
   });
 
   nav.addEventListener('pointerup', async (e) => {
     if (!navPointer || navPointer.id !== e.pointerId) return;
 
     const wasDrag = navPointer.didDrag;
-    const clickedLink = navPointer.startLink;
+    const clickedLink = navPointer.targetLink;
 
     navPointer = null;
     nav.classList.remove('nav-dragging');
+    nav.releasePointerCapture?.(e.pointerId);
 
-    const chosenLink = wasDrag
-      ? getClosestNavLink(nav, e.clientX)
-      : clickedLink;
-
-    // Always suppress the follow-up native click.
-    // We are handling nav ourselves here.
-    suppressNextNavClick = true;
-
-    await goToNavLink(chosenLink);
-
-    setTimeout(() => {
-      suppressNextNavClick = false;
-    }, 0);
+    if (wasDrag) {
+      const chosenLink = getClosestNavLink(nav, e.clientX);
+      
+      // Update browser history and route to section
+      suppressNextNavClick = true;
+      await goToNavLink(chosenLink);
+      
+      setTimeout(() => {
+        suppressNextNavClick = false;
+      }, 50);
+    } else {
+      if (clickedLink) {
+        suppressNextNavClick = true;
+        await goToNavLink(clickedLink);
+        
+        setTimeout(() => {
+          suppressNextNavClick = false;
+        }, 50);
+      } else {
+        requestAnimationFrame(() => updateLiquidNavPill(false));
+      }
+    }
   });
 
   nav.addEventListener('pointercancel', () => {
     navPointer = null;
     suppressNextNavClick = false;
     nav.classList.remove('nav-dragging');
-    requestAnimationFrame(updateLiquidNavPill);
+    requestAnimationFrame(() => updateLiquidNavPill(false));
   });
 
   nav.addEventListener('click', (e) => {
     const link = e.target.closest('a');
-    if (!link) return;
+    
+    e.preventDefault();
+    e.stopImmediatePropagation();
 
     if (suppressNextNavClick) {
-      e.preventDefault();
-      e.stopImmediatePropagation();
       suppressNextNavClick = false;
       return;
     }
 
-    // Fallback only, in case pointer events fail for some reason.
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    goToNavLink(link);
+    if (link) {
+      goToNavLink(link);
+    }
   }, true);
 }
 
@@ -531,6 +585,9 @@ window.addEventListener('popstate', () => {
  * scrolls to the top, and re-boots the page.
  */
 async function handleRoute(url) {
+  // Clean up slideshow before route change
+  cleanupHeroSlideshow();
+
   const urlObj = new URL(url);
   const newSection = urlObj.searchParams.get('section');
   const isHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html';
@@ -626,10 +683,20 @@ document.addEventListener('click', e => {
 
 // ─── Service Worker Registration ────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
-      .catch(err => console.warn('[ServiceWorker] Registration failed:', err));
-  });
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const registration of registrations) {
+        registration.unregister().then(success => {
+          if (success) console.log('[ServiceWorker] Unregistered stale service worker on localhost');
+        });
+      }
+    });
+  } else {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .catch(err => console.warn('[ServiceWorker] Registration failed:', err));
+    });
+  }
 }
 
 // Idempotent BFCache restore handler
@@ -641,11 +708,11 @@ window.addEventListener('pageshow', (event) => {
 });
 
 window.addEventListener('resize', () => {
-  requestAnimationFrame(updateLiquidNavPill);
+  requestAnimationFrame(() => updateLiquidNavPill(true));
 });
 
 window.addEventListener('load', () => {
-  requestAnimationFrame(updateLiquidNavPill);
+  requestAnimationFrame(() => updateLiquidNavPill(true));
 });
 
 // Bootstrap initial load
