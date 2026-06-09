@@ -43,12 +43,12 @@ export function initHeroSlideshow(heroes) {
   const { signal } = state.heroAbortController;
 
   // Use server-provided index if available for consistency with preloading
-  if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number') {
+  if (window.INITIAL_DATA && typeof window.INITIAL_DATA.initial_hero_index === 'number' && !Number.isNaN(window.INITIAL_DATA.initial_hero_index)) {
     state.heroIndex = window.INITIAL_DATA.initial_hero_index;
     delete window.INITIAL_DATA.initial_hero_index;
   } else {
     // If state.heroIndex is already valid and bounds-safe, keep it for idempotency on re-entry
-    if (typeof state.heroIndex !== 'number' || state.heroIndex < 0 || state.heroIndex >= heroes.length) {
+    if (typeof state.heroIndex !== 'number' || Number.isNaN(state.heroIndex) || state.heroIndex < 0 || state.heroIndex >= heroes.length) {
       state.heroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
     }
   }
@@ -347,32 +347,40 @@ export function initHeroSlideshow(heroes) {
  */
 export function nextHeroSlide() {
   if (state.heroSlides.length < 2) return;
+
+  // Safety check: if heroIndex is invalid, NaN, or out of bounds, reset it
+  if (typeof state.heroIndex !== 'number' || Number.isNaN(state.heroIndex) || state.heroIndex < 0 || state.heroIndex >= state.heroSlides.length) {
+    state.heroIndex = 0;
+  }
   
   const oldSlide = state.heroSlides[state.heroIndex];
-  oldSlide.classList.add('last-active');
-  oldSlide.classList.remove('active');
-  
-  // Remove last-active class after fade-out transition completes (2000ms buffer)
-  const fadeTimeoutId = setTimeout(() => {
-    oldSlide.classList.remove('last-active');
-  }, 2000);
-  state.heroTimeouts.push(fadeTimeoutId);
+  if (oldSlide) {
+    oldSlide.classList.add('last-active');
+    oldSlide.classList.remove('active');
+    
+    // Remove last-active class after fade-out transition completes (2000ms buffer)
+    const fadeTimeoutId = setTimeout(() => {
+      oldSlide.classList.remove('last-active');
+    }, 2000);
+    state.heroTimeouts.push(fadeTimeoutId);
+  }
 
   state.heroIndex = (state.heroIndex + 1) % state.heroSlides.length;
   
   const nextSlide = state.heroSlides[state.heroIndex];
+  if (nextSlide) {
+    // Load standard thumbnail (and srcset) for the incoming active slide
+    if (nextSlide.loadSlideImage) {
+      nextSlide.loadSlideImage();
+    }
 
-  // Load standard thumbnail (and srcset) for the incoming active slide
-  if (nextSlide.loadSlideImage) {
-    nextSlide.loadSlideImage();
+    // Trigger full-res load for the incoming slide (desktop only)
+    if (nextSlide.loadFullRes) {
+      nextSlide.loadFullRes();
+    }
+    
+    nextSlide.classList.add('active');
   }
-
-  // Trigger full-res load for the incoming slide (desktop only)
-  if (nextSlide.loadFullRes) {
-    nextSlide.loadFullRes();
-  }
-  
-  nextSlide.classList.add('active');
 
   // Notify the adaptive contrast system that the active slide changed
   document.dispatchEvent(new CustomEvent('hero:slide-changed'));

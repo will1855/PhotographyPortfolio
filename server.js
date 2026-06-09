@@ -161,8 +161,8 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   const performanceTags = `
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
-    <link rel="preload" href="/style.css?v=4" as="style">
-    <link rel="modulepreload" href="/js/main.js?v=4">
+    <link rel="preload" href="/style.css?v=14" as="style">
+    <link rel="modulepreload" href="/js/main.js?v=13">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -450,7 +450,15 @@ async function getSiteConfigData() {
           hero_kicker: 'Archive Collection',
           hero_link_text: 'View',
           sort_order: 1,
-          heroes: []
+          heroes: [
+            {
+              id: 101,
+              full_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200',
+              thumb_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600',
+              grid_thumb_url: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=600',
+              focal_point: 'center'
+            }
+          ]
         },
         {
           id: 2,
@@ -460,7 +468,15 @@ async function getSiteConfigData() {
           hero_kicker: 'Visual Studies',
           hero_link_text: 'Explore',
           sort_order: 2,
-          heroes: []
+          heroes: [
+            {
+              id: 102,
+              full_url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=1200',
+              thumb_url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600',
+              grid_thumb_url: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?w=600',
+              focal_point: 'center'
+            }
+          ]
         }
       ]
     };
