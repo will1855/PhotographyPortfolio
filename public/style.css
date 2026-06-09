@@ -1029,8 +1029,8 @@ header.ui-on-light nav a.active {
   transition-delay: 1500ms, 0s;
 }
 
-.gallery.work-editorial .work-item img.loaded ~ .work-item-caption,
-.gallery.work-editorial--custom .work-item img.loaded ~ .work-item-caption {
+.gallery.work-editorial .work-item.revealed img.loaded ~ .work-item-caption,
+.gallery.work-editorial--custom .work-item.revealed img.loaded ~ .work-item-caption {
   opacity: 1;
 }
 
