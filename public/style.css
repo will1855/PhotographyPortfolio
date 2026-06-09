@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Will Davies Photography — style.css
    ═══════════════════════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;900&display=swap');
 
 /* ── Reset & Root ──────────────────────────────────────────────────────────── */
 * {
@@ -1016,7 +1016,7 @@ header.ui-on-light nav a.active {
 /* Captions: clean uppercase sans-serif grotesque in bold Archivo font */
 .work-item-caption {
   font-family: 'Archivo', sans-serif;
-  font-weight: 700; /* bold */
+  font-weight: 900; /* extra bold / black */
   font-size: var(--caption-fs, clamp(0.7rem, 0.85vw, 0.82rem));
   text-transform: uppercase;
   letter-spacing: 0.14em;
@@ -1044,36 +1044,41 @@ header.ui-on-light nav a.active {
   flex-direction: column !important;
 }
 
-.gallery.work-editorial .work-item.pos-left,
-.gallery.work-editorial--custom .work-item.pos-left {
-  display: flex !important;
-  flex-direction: row-reverse !important;
-  align-items: center !important;
-  gap: 24px !important;
+.gallery.work-editorial .work-item.pos-below .work-item-caption,
+.gallery.work-editorial--custom .work-item.pos-below .work-item-caption {
+  margin-top: 14px !important;
 }
 
+.gallery.work-editorial .work-item.pos-above .work-item-caption,
+.gallery.work-editorial--custom .work-item.pos-above .work-item-caption {
+  margin-bottom: 14px !important;
+}
+
+.gallery.work-editorial .work-item.pos-left,
+.gallery.work-editorial--custom .work-item.pos-left,
 .gallery.work-editorial .work-item.pos-right,
 .gallery.work-editorial--custom .work-item.pos-right {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 24px !important;
-}
-
-.gallery.work-editorial .work-item.pos-left img,
-.gallery.work-editorial .work-item.pos-right img,
-.gallery.work-editorial--custom .work-item.pos-left img,
-.gallery.work-editorial--custom .work-item.pos-right img {
-  flex: 1 !important;
-  min-width: 0 !important;
+  display: block !important;
+  position: relative !important;
 }
 
 .gallery.work-editorial .work-item.pos-left .work-item-caption,
+.gallery.work-editorial--custom .work-item.pos-left .work-item-caption {
+  position: absolute !important;
+  right: calc(100% + 24px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 280px !important;
+  margin-top: 0 !important;
+}
+
 .gallery.work-editorial .work-item.pos-right .work-item-caption,
-.gallery.work-editorial--custom .work-item.pos-left .work-item-caption,
 .gallery.work-editorial--custom .work-item.pos-right .work-item-caption {
-  flex-shrink: 0 !important;
-  max-width: 280px !important;
+  position: absolute !important;
+  left: calc(100% + 24px) !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  width: 280px !important;
   margin-top: 0 !important;
 }
 
@@ -1134,6 +1139,8 @@ header.ui-on-light nav a.active {
   .gallery.work-editorial .work-item.pos-right .work-item-caption,
   .gallery.work-editorial--custom .work-item.pos-left .work-item-caption,
   .gallery.work-editorial--custom .work-item.pos-right .work-item-caption {
+    position: static !important;
+    transform: none !important;
     max-width: none !important;
     margin-top: 10px !important;
   }

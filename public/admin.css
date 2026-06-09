@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700;900&display=swap');
 /* ─── Reset & tokens ────────────────────────────────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1462,27 +1463,31 @@ textarea { min-height: 100px; }
   display: flex;
   flex-direction: column;
 }
-.work-preview-item.pos-left {
-  display: flex;
-  flex-direction: row-reverse;
-  align-items: center;
-  gap: 12px;
+.work-preview-item.pos-below .work-preview-caption {
+  margin-top: 6px;
 }
+.work-preview-item.pos-above .work-preview-caption {
+  margin-bottom: 6px;
+}
+.work-preview-item.pos-left,
 .work-preview-item.pos-right {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 12px;
+  display: block;
+  position: relative;
 }
-.work-preview-item.pos-left img,
-.work-preview-item.pos-right img {
-  flex: 1;
-  min-width: 0;
+.work-preview-item.pos-left .work-preview-caption {
+  position: absolute;
+  right: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100px;
+  margin-top: 0;
 }
-.work-preview-item.pos-left .work-preview-caption,
 .work-preview-item.pos-right .work-preview-caption {
-  flex-shrink: 0;
-  max-width: 100px;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100px;
   margin-top: 0;
 }
 
@@ -1495,7 +1500,8 @@ textarea { min-height: 100px; }
 }
 
 .work-preview-caption {
-  font-family: inherit;
+  font-family: 'Archivo', sans-serif;
+  font-weight: 900;
   font-size: 0.58rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
