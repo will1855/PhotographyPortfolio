@@ -206,14 +206,6 @@ header h1 {
   max-width: 760px;
 }
 
-.hero-kicker {
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: rgba(243, 243, 240, 0.72);
-  margin-bottom: 14px;
-}
-
 
 /* ── Liquid Glass Nav Pill ─────────────────────────────────────────────────── */
 
@@ -340,81 +332,6 @@ nav a.active {
 }
 
 
-/* ── Hero CTA Button ───────────────────────────────────────────────────────── */
-.hero-link {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  color: rgba(255, 255, 255, 0.92);
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  padding: 9px 18px;
-  border-radius: 999px;
-
-  background: rgba(255, 255, 255, 0.07);
-  border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.24);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-
-  /* 3-D tilt driven by --tilt-x / --tilt-y set by JS */
-  transform-style: preserve-3d;
-  perspective: 600px;
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
-             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(0);
-
-  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.15);
-
-  transition:
-    transform     200ms cubic-bezier(0.25, 1, 0.5, 1),
-    background    200ms ease,
-    backdrop-filter 200ms ease,
-    -webkit-backdrop-filter 200ms ease,
-    box-shadow    200ms ease;
-}
-
-/* Cursor-following specular glare spot */
-.hero-link::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: 1;
-  background: radial-gradient(
-    circle at var(--glare-x, 30%) var(--glare-y, 20%),
-    rgba(255, 255, 255, 0.18)  0%,
-    rgba(255, 255, 255, 0.04) 45%,
-    rgba(255, 255, 255, 0.00) 75%
-  );
-  mix-blend-mode: screen;
-  opacity: 0;
-  transition: opacity 250ms ease;
-}
-
-.hero-link:hover::after { opacity: 1; }
-
-.hero-link:hover {
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
-             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(3px) translateY(-1px) scale(1.03);
-  background: rgba(255, 255, 255, 0.10);
-  border-top-color: rgba(255, 255, 255, 0.30);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(155%) brightness(1.07);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.18);
-}
-
-.hero-link:active {
-  transform: rotateX(calc(var(--tilt-y, 0) * 6deg))
-             rotateY(calc(var(--tilt-x, 0) * -6deg)) translateZ(1px) translateY(0) scale(0.97);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(6px) saturate(150%) brightness(1.05);
-}
 
 
 /* ── No-Hero Mode (My Work / Archive tabs) ─────────────────────────────────── */
@@ -978,15 +895,6 @@ header.ui-on-mid nav a.active {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
 }
 
-.hero-link.ui-on-mid {
-  background: rgba(0, 0, 0, 0.22);
-  border-top-color: rgba(255, 255, 255, 0.26);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
-  box-shadow: 0 3px 20px rgba(0, 0, 0, 0.32);
-  color: #ffffff;
-}
-
 /* ui-on-light: washed / near-white hero backgrounds */
 header.ui-on-light h1 {
   color: #ffffff;
@@ -1019,15 +927,6 @@ header.ui-on-light nav a {
 header.ui-on-light nav a.active {
   color: #ffffff;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.70);
-}
-
-.hero-link.ui-on-light {
-  background: rgba(0, 0, 0, 0.38);
-  border-top-color: rgba(255, 255, 255, 0.18);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.84);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.84);
-  box-shadow: 0 3px 26px rgba(0, 0, 0, 0.40);
-  color: #ffffff;
 }
 
 

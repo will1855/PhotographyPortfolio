@@ -44,8 +44,6 @@ export const dom = {
   get lightboxSlider() { return document.getElementById('lightbox-slider'); },
   get lightboxClose() { return document.getElementById('lightbox-close'); },
   get heroMedia() { return document.getElementById('hero-media'); },
-  get heroKicker() { return document.getElementById('hero-kicker'); },
-  get heroLink() { return document.getElementById('hero-link'); },
   get header() { return document.getElementById('site-header'); },
   get siteNav() { return document.getElementById('site-nav'); },
   get siteTitle() { return document.getElementById('site-title'); },

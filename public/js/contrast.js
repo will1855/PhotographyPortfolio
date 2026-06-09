@@ -105,28 +105,24 @@ function classifyLuminance(lum) {
  * @param {'dark'|'mid'|'light'} tier
  */
 function applyTier(tier) {
-  const header   = document.getElementById('site-header');
-  const heroLink = document.getElementById('hero-link');
-
+  const header = document.getElementById('site-header');
   const cls = `ui-on-${tier}`;
 
-  [header, heroLink].forEach(el => {
-    if (!el) return;
-    if (!el.classList.contains(cls)) {
-      el.classList.remove(...UI_CLASSES);
-      el.classList.add(cls);
+  if (header) {
+    if (!header.classList.contains(cls)) {
+      header.classList.remove(...UI_CLASSES);
+      header.classList.add(cls);
     }
-  });
+  }
 }
 
 /**
- * Finds the currently active hero slide's <img> and samples three regions.
+ * Finds the currently active hero slide's <img> and samples two regions.
  * Regions approximate the visual zones occupied by:
- *   - top-left:    site name    (x: 0–25%,  y: 0–18%)
- *   - top-right:   nav pill     (x: 55–100%, y: 0–18%)
- *   - bottom-left: hero "View"  (x: 0–30%,  y: 78–100%)
+ *   - top-left:    site name    (x: 0–28%,  y: 0–20%)
+ *   - top-right:   nav pill     (x: 52–100%, y: 0–20%)
  *
- * The worst-case (highest luminance) across all three regions determines
+ * The worst-case (highest luminance) across both regions determines
  * the overall tier applied — this way if ANY region is bright, we boost.
  */
 function evaluateActiveSlide() {
@@ -142,10 +138,9 @@ function evaluateActiveSlide() {
 
   const lumBrand  = sampleRegionLuminance(img, 0.00, 0.00, 0.28, 0.20);
   const lumNav    = sampleRegionLuminance(img, 0.52, 0.00, 0.48, 0.20);
-  const lumCta    = sampleRegionLuminance(img, 0.00, 0.76, 0.32, 0.24);
 
   // Pick the highest luminance region — the most demanding case
-  const readings = [lumBrand, lumNav, lumCta].filter(v => v !== null);
+  const readings = [lumBrand, lumNav].filter(v => v !== null);
 
   // CORS fallback: if all readings are null (tainted canvas / cross-origin without
   // CORS headers), default to 'mid' rather than doing nothing. This ensures the

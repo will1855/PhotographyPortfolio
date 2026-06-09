@@ -445,9 +445,6 @@ function setupLiquidHoverEffects() {
   const nav = dom.siteNav || document.querySelector('nav');
   if (nav) elements.push(nav);
   
-  const heroLink = dom.heroLink || document.querySelector('.hero-link');
-  if (heroLink) elements.push(heroLink);
-  
   elements.forEach(el => {
     if (el.dataset.liquidHoverSetup === 'true') return;
     el.dataset.liquidHoverSetup = 'true';
@@ -534,8 +531,7 @@ function setupLiquidGlassReactivity() {
   if (!turbulence || !displacement) return;
 
   const nav = dom.siteNav || document.querySelector('nav');
-  const heroLink = dom.heroLink || document.querySelector('.hero-link');
-  const glassEls = [nav, heroLink].filter(Boolean);
+  const glassEls = nav ? [nav] : [];
 
   // Smoothed internal state
   let targetFreqX = 0.015;
@@ -676,26 +672,16 @@ function applyConfig(config) {
     });
   }
 
-  // Hero CTA / slideshow — only boot when we're on the Home tab
+  // Hero slideshow — only boot when we're on the Home tab
   if (isHomePage) {
-    // Find the first non-archive section to use for the hero kicker/link
+    // Find the first non-archive section to use for the hero slideshow
     const heroSection = sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() !== 'archive') || sections[0];
     if (heroSection) {
-      if (dom.heroKicker) {
-        dom.heroKicker.textContent = heroSection.hero_kicker || heroSection.label || '';
-      }
-      if (dom.heroLink) {
-        dom.heroLink.textContent = heroSection.hero_link_text || 'View Work';
-        // Point the hero CTA to the first work section
-        dom.heroLink.href = `/?section=${encodeURIComponent(heroSection.slug)}`;
-      }
       if (heroSection.heroes && heroSection.heroes.length > 0) {
         initHeroSlideshow(heroSection.heroes);
       }
     } else if (sectionConfig) {
       // Fallback: use the currently resolved section
-      if (dom.heroKicker) dom.heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
-      if (dom.heroLink)   dom.heroLink.textContent   = sectionConfig.hero_link_text || 'View Work';
       if (sectionConfig.heroes?.length > 0) initHeroSlideshow(sectionConfig.heroes);
     }
   }

@@ -228,12 +228,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       }
     });
 
-    const kickerText = sectionConfig.hero_kicker || sectionConfig.label || '';
-    const linkText = sectionConfig.hero_link_text || 'View';
-
     html = html.replace(/<div class="hero-media" id="hero-media">[\s\S]*?<\/div>/, `<div class="hero-media" id="hero-media">${heroMediaHtml}</div>`);
-    html = html.replace(/<p class="hero-kicker" id="hero-kicker">[\s\S]*?<\/p>/, `<p class="hero-kicker" id="hero-kicker">${escapeHtml(kickerText)}</p>`);
-    html = html.replace(/<a href="#gallery" class="hero-link" id="hero-link">[\s\S]*?<\/a>/, `<a href="#gallery" class="hero-link" id="hero-link">${escapeHtml(linkText)}</a>`);
   }
   
   // Initial Data injection
