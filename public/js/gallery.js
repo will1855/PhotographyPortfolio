@@ -30,7 +30,7 @@ function triggerFadeIn(img) {
   const applyClass = () => {
     setTimeout(() => {
       img.classList.add('loaded');
-    }, 250);
+    }, 50);
   };
 
   if (window.activeViewTransition) {
