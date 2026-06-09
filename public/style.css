@@ -753,6 +753,8 @@ body:not(.no-hero) #app-content footer {
 
 /* ── Footer ────────────────────────────────────────────────────────────────── */
 footer {
+  position: relative;
+  z-index: 5;
   padding: 80px 22px 40px;
   border-top: 1px solid rgba(243, 243, 240, 0.05);
   margin-top: 60px;
@@ -943,7 +945,7 @@ header.ui-on-light nav a.active {
   display: block;
   grid-auto-rows: unset;
   overflow: visible;
-  padding: 0 40px 140px;
+  padding: 160px 40px 140px;
   max-width: none;
 }
 
@@ -971,7 +973,7 @@ header.ui-on-light nav a.active {
   height: auto !important;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 40px 140px;
+  padding: 160px 40px 140px;
   box-sizing: border-box;
   overflow: visible;
 }
@@ -1117,7 +1119,7 @@ header.ui-on-light nav a.active {
 @media (max-width: 768px) {
   .gallery.work-editorial,
   .gallery.work-editorial--custom {
-    padding: 20px 18px 80px !important;
+    padding: 100px 18px 80px !important;
     max-width: none;
   }
 
