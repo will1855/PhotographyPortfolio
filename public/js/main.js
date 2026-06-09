@@ -62,11 +62,8 @@ export async function initPage() {
   }
 
   const isAbout = window.location.pathname.includes('/about');
-  // "Home" = on the root path with no section param
-  let urlSection = new URLSearchParams(window.location.search).get('section');
-  if (!urlSection && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && window.location.pathname !== '/about' && window.location.pathname !== '/about.html') {
-    urlSection = window.location.pathname.replace(/^\//, '');
-  }
+  // "Home" = on the root path with no ?section= param
+  const urlSection = new URLSearchParams(window.location.search).get('section');
   const isHome = !isAbout && (window.location.pathname === '/' || window.location.pathname === '/index.html') && !urlSection;
 
   // Toggle hero visibility: show on Home, hide on Work/Archive/About
@@ -184,15 +181,10 @@ function setupNavPrefetch() {
 
   const prefetch = (e) => {
     const a = e.target.closest('a');
-    if (!a) return;
+    if (!a || !a.href.includes('section=')) return;
     try {
       const url = new URL(a.href, window.location.origin);
-      if (url.origin !== window.location.origin) return;
-      let s = url.searchParams.get('section');
-      if (!s && url.pathname !== '/' && url.pathname !== '/index.html' && url.pathname !== '/about' && url.pathname !== '/about.html') {
-        s = url.pathname.replace(/^\//, '');
-      }
-      if (!s) return;
+      const s = url.searchParams.get('section');
       if (s && !state.sectionCache.has(s)) {
         fetch(`/api/images?section=${encodeURIComponent(s)}`)
           .then(res => res.json())
@@ -616,10 +608,7 @@ function applyConfig(config) {
   const site_title = config.site_title || 'Will Davies';
   const sections = config.sections || [];
   const isAboutPage = window.location.pathname.includes('/about');
-  let urlSection = new URLSearchParams(window.location.search).get('section');
-  if (!urlSection && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && window.location.pathname !== '/about' && window.location.pathname !== '/about.html') {
-    urlSection = window.location.pathname.replace(/^\//, '');
-  }
+  const urlSection = new URLSearchParams(window.location.search).get('section');
   const isHomePage = !isAboutPage && !urlSection &&
     (window.location.pathname === '/' || window.location.pathname === '/index.html');
   const sectionConfig = sections.find(s => s.slug === state.section);
@@ -654,7 +643,7 @@ function applyConfig(config) {
     // ── Section links ──
     for (const s of sections) {
       const a = document.createElement('a');
-      a.href = `/${encodeURIComponent(s.slug)}`;
+      a.href = `/?section=${encodeURIComponent(s.slug)}`;
       a.textContent = s.nav_label || s.label;
       if (!isAboutPage && !isHomePage && s.slug === state.section) a.classList.add('active');
       dom.siteNav.appendChild(a);
@@ -673,11 +662,11 @@ function applyConfig(config) {
       const url = new URL(a.href, window.location.origin);
       if (url.pathname === '/about') {
         a.classList.toggle('active', isAboutPage);
-      } else if (url.pathname === '/' || url.pathname === '/index.html') {
+      } else if (!url.searchParams.get('section') && url.pathname === '/') {
         // Home link — active only when on the bare home page
         a.classList.toggle('active', isHomePage);
       } else {
-        const s = url.pathname.replace(/^\//, '');
+        const s = url.searchParams.get('section');
         a.classList.toggle('active', !isAboutPage && !isHomePage && s === state.section);
       }
     });
@@ -703,17 +692,14 @@ function applyConfig(config) {
  */
 function applyFallbackNav() {
   const isAboutPage = window.location.pathname.includes('/about');
-  let urlSection = new URLSearchParams(window.location.search).get('section');
-  if (!urlSection && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && window.location.pathname !== '/about' && window.location.pathname !== '/about.html') {
-    urlSection = window.location.pathname.replace(/^\//, '');
-  }
+  const urlSection = new URLSearchParams(window.location.search).get('section');
   const isHomePage = !isAboutPage && !urlSection &&
     (window.location.pathname === '/' || window.location.pathname === '/index.html');
   if (dom.siteNav) {
     dom.siteNav.innerHTML = `
       <a href="/"${isHomePage ? ' class="active"' : ''}>Home</a>
-      <a href="/archive"${!isAboutPage && !isHomePage && state.section === 'archive' ? ' class="active"' : ''}>Archive</a>
-      <a href="/studies"${!isAboutPage && !isHomePage && state.section === 'studies' ? ' class="active"' : ''}>Studies</a>
+      <a href="/?section=archive"${!isAboutPage && !isHomePage && state.section === 'archive' ? ' class="active"' : ''}>Archive</a>
+      <a href="/?section=studies"${!isAboutPage && !isHomePage && state.section === 'studies' ? ' class="active"' : ''}>Studies</a>
       <a href="/about"${isAboutPage ? ' class="active"' : ''}>About</a>
     `;
   }
@@ -870,20 +856,14 @@ async function handleRoute(url) {
   cleanupHeroSlideshow();
 
   const urlObj = new URL(url);
-  let newSection = urlObj.searchParams.get('section');
-  if (!newSection && urlObj.pathname !== '/' && urlObj.pathname !== '/index.html' && urlObj.pathname !== '/about' && urlObj.pathname !== '/about.html') {
-    newSection = urlObj.pathname.replace(/^\//, '');
-  }
-  const isSectionOrHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html' || 
-    (urlObj.pathname !== '/about' && urlObj.pathname !== '/about.html' && 
-     !urlObj.pathname.startsWith('/admin') && !urlObj.pathname.startsWith('/login') && 
-     !urlObj.pathname.startsWith('/api/'));
+  const newSection = urlObj.searchParams.get('section');
+  const isHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html';
   const hasGallery = !!document.getElementById('gallery');
 
   // Fast client-side navigation (same HTML shell — Home ↔ sections, sections ↔ sections)
-  // Works for: Home→Section, Section→Section, Section→Home
-  if (isSectionOrHome && hasGallery) {
-    state.section = newSection;
+  // Works for: Home→Section, Section→Section, Section→Home (no-section)
+  if (isHome && hasGallery) {
+    if (newSection) state.section = newSection;
     const performUpdate = async () => {
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);

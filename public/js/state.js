@@ -1,11 +1,8 @@
 'use strict';
 
-// Resolve initial section from URL pathname or query parameters
+// Resolve initial section from URL parameters
 const params = new URLSearchParams(window.location.search);
-let initialSection = params.get('section') || null;
-if (!initialSection && window.location.pathname !== '/' && window.location.pathname !== '/index.html' && window.location.pathname !== '/about' && window.location.pathname !== '/about.html') {
-  initialSection = window.location.pathname.replace(/^\//, '');
-}
+const initialSection = params.get('section') || null;
 
 // Centralised mutable state object
 export const state = {
