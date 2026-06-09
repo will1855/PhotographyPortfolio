@@ -145,7 +145,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   const desc = siteConfig?.about_text || 'Photography portfolio — archive and studies.';
   
   // Construct canonical absolute URL for dynamic page metadata
-  const pageUrl = `https://willdaviesphoto.co.uk${filename === 'about.html' ? '/about' : (activeSectionSlug === 'archive' ? '/' : '/?section=' + encodeURIComponent(activeSectionSlug))}`;
+  const pageUrl = `https://willdaviesphoto.co.uk${filename === 'about.html' ? '/about' : (activeSectionSlug === 'archive' ? '/' : '/' + encodeURIComponent(activeSectionSlug))}`;
   
   // Basic SEO injection
   html = html.replace(/<title>.*?<\/title>/, `<title>${filename === 'about.html' ? aboutTitle + ' — ' : ''}${title}</title>`);
@@ -192,7 +192,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   let navHtml = '';
   for (const s of sections) {
     const isActive = !isAboutPage && s.slug === activeSectionSlug;
-    navHtml += `<a href="/?section=${encodeURIComponent(s.slug)}"${isActive ? ' class="active"' : ''}>${s.nav_label || s.label}</a>`;
+    navHtml += `<a href="/${encodeURIComponent(s.slug)}"${isActive ? ' class="active"' : ''}>${s.nav_label || s.label}</a>`;
   }
   const isAboutActive = isAboutPage;
   navHtml += `<a href="/about"${isAboutActive ? ' class="active"' : ''}>${aboutTitle}</a>`;
@@ -249,13 +249,30 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
 }
 
 // Serve injected pages
-app.get('/', async (req, res) => {
-  const slug = (req.query.section || 'archive').toLowerCase().trim();
+const handleSectionPage = async (req, res, next) => {
+  const slug = (req.params.section || req.query.section || 'archive').toLowerCase().trim();
+  
+  // Guard: if parameter looks like a static asset, API, admin, or about route, pass control to next middleware
+  if (
+    slug.includes('.') || 
+    slug.startsWith('api') || 
+    slug === 'admin' || 
+    slug === 'login' || 
+    slug === 'about'
+  ) {
+    return next();
+  }
+
   try {
     const config = await getSiteConfigData();
+    // Verify that the dynamic parameter corresponds to a visible portfolio section (or the default archive)
+    const sec = config.sections.find(s => s.slug === slug);
+    if (!sec && slug !== 'archive') {
+      return next(); // Let Express handle 404/fallback
+    }
+
     // Also pre-fetch images for the initial section
     let imgSlug = slug;
-    const sec = config.sections.find(s => s.slug === slug);
     const isEditorial = !sec || (sec.nav_label || sec.label || '').toLowerCase().trim() !== 'archive';
     if (isEditorial) {
       const archiveSec = config.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
@@ -271,7 +288,10 @@ app.get('/', async (req, res) => {
   } catch (err) {
     res.sendFile(path.join(__dirname, 'index.html'));
   }
-});
+};
+
+app.get('/', handleSectionPage);
+app.get('/:section', handleSectionPage);
 
 app.get('/about', async (req, res) => {
   try {
@@ -769,7 +789,7 @@ app.get('/sitemap.xml', async (req, res) => {
 
     // 3. Sections pages
     for (const slug of slugs) {
-      xml += `  <url>\n    <loc>${baseUrl}/?section=${encodeURIComponent(slug)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
+      xml += `  <url>\n    <loc>${baseUrl}/${encodeURIComponent(slug)}</loc>\n    <changefreq>weekly</changefreq>\n    <priority>0.8</priority>\n  </url>\n`;
     }
 
     xml += `</urlset>`;

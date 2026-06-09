@@ -31,6 +31,7 @@
     { "source": "/about", "destination": "/server.js" },
     { "source": "/api/(.*)", "destination": "/server.js" },
     { "source": "/admin", "destination": "/server.js" },
-    { "source": "/login", "destination": "/server.js" }
+    { "source": "/login", "destination": "/server.js" },
+    { "source": "/:section", "destination": "/server.js" }
   ]
 }
