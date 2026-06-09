@@ -2,7 +2,7 @@
 
 // Resolve initial section from URL parameters
 const params = new URLSearchParams(window.location.search);
-const initialSection = params.get('section') || 'archive';
+const initialSection = params.get('section') || null;
 
 // Centralised mutable state object
 export const state = {

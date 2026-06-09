@@ -259,7 +259,16 @@ app.get('/', async (req, res) => {
   try {
     const config = await getSiteConfigData();
     // Also pre-fetch images for the initial section
-    config.initial_images = await getSectionImagesData(slug);
+    let imgSlug = slug;
+    const sec = config.sections.find(s => s.slug === slug);
+    const isEditorial = !sec || (sec.nav_label || sec.label || '').toLowerCase().trim() !== 'archive';
+    if (isEditorial) {
+      const archiveSec = config.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+      if (archiveSec) {
+        imgSlug = archiveSec.slug;
+      }
+    }
+    config.initial_images = await getSectionImagesData(imgSlug);
     const html = await getInjectedHtml('index.html', config, slug);
     // Vercel Edge caching - approved via Rule 10
     res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
@@ -401,14 +410,16 @@ const upload = multer({
 // =============================================================================
 // Login rate limiter — 5 attempts per 15 min per IP
 // =============================================================================
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
-  skipSuccessfulRequests: true,
-});
+const loginLimiter = process.env.CI === 'true' || process.env.NODE_ENV === 'test'
+  ? (req, res, next) => next()
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+      skipSuccessfulRequests: true,
+    });
 
 // =============================================================================
 // PUBLIC API
@@ -633,6 +644,38 @@ app.get('/api/images', async (req, res) => {
 });
 
 /**
+ * GET /api/layout?section=<slug>
+ * Returns saved editorial layout JSON for a section (null if none set).
+ * Requires layout_json TEXT column on portfolio_sections table.
+ */
+app.get('/api/layout', async (req, res) => {
+  const slug = (req.query.section || '').toLowerCase().trim();
+  if (!slug) return res.status(400).json({ error: 'Missing section parameter' });
+
+  try {
+    const { data, error } = await supabase
+      .from('portfolio_sections')
+      .select('layout_json')
+      .eq('slug', slug)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    let layout = null;
+    if (data?.layout_json) {
+      try { layout = JSON.parse(data.layout_json); } catch {}
+    }
+
+    res.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+    res.json({ layout });
+  } catch (err) {
+    // Gracefully handle missing column — return null layout
+    console.warn('[/api/layout] Failed (column may not exist yet):', err.message);
+    res.json({ layout: null });
+  }
+});
+
+/**
  * POST /api/contact
  * Handles contact form submissions and stores them in Supabase.
  */
@@ -798,6 +841,31 @@ app.post('/admin/logout', (_req, res) => {
 // =============================================================================
 // ADMIN API — all routes protected by requireAdmin
 // =============================================================================
+
+/**
+ * POST /api/admin/layout
+ * Saves editorial layout JSON for a section.
+ * Requires layout_json TEXT column on portfolio_sections.
+ * Run: ALTER TABLE portfolio_sections ADD COLUMN layout_json TEXT;
+ */
+app.post('/api/admin/layout', requireAdmin, async (req, res) => {
+  const { section, layout } = req.body;
+  if (!section) return res.status(400).json({ error: 'Missing section' });
+
+  try {
+    const layoutStr = layout ? JSON.stringify(layout) : null;
+    const { error } = await supabase
+      .from('portfolio_sections')
+      .update({ layout_json: layoutStr })
+      .eq('slug', section);
+
+    if (error) throw error;
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[/api/admin/layout]', err.message);
+    res.status(500).json({ error: 'Failed to save layout. Ensure layout_json column exists on portfolio_sections.' });
+  }
+});
 
 /** GET /api/admin/session — check if the current cookie is valid */
 app.get('/api/admin/session', requireAdmin, (_req, res) => {

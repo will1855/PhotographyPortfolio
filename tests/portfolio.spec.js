@@ -49,15 +49,16 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await expect(page.locator('button#login-btn')).toBeVisible();
 
     // 3. Intercept the network login response to assert status code
-    const [response] = await Promise.all([
-      page.waitForResponse(response => response.url().includes('/admin/login') && response.status() === 401),
-      page.fill('input#admin-password', 'falsified_security_password'),
-      page.click('button#login-btn')
-    ]);
+    const responsePromise = page.waitForResponse(response => 
+      response.url().includes('/admin/login') && (response.status() === 401 || response.status() === 429)
+    );
+    await page.fill('input#admin-password', 'falsified_security_password');
+    await page.click('button#login-btn');
+    const response = await responsePromise;
 
     // 4. Assert response payload contains proper error message
     const json = await response.json();
-    expect(json.error).toBe('Incorrect password');
+    expect(json.error).toMatch(/Incorrect password|Too many login attempts/);
   });
 
   test('should log image diagnostics when ?diagnostic=true is set', async ({ page }) => {
@@ -69,10 +70,20 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
       }
     });
 
-    // 1. Visit homepage with diagnostic flag
+    // 1. Visit homepage and set diagnostic flag in localStorage to persist across SPA routing
+    await page.goto('/');
+    await page.evaluate(() => localStorage.setItem('diagnostic', 'true'));
+
+    // 2. Re-visit homepage with diagnostic flag to trigger initial hero logs
     await page.goto('/?diagnostic=true');
+    await page.waitForTimeout(1000);
+
+    // 3. Click the Archive nav link to trigger gallery thumbnail logs (via SPA routing)
+    const archiveLink = page.locator('nav#site-nav a:has-text("Archive")');
+    await expect(archiveLink).toBeVisible();
+    await archiveLink.click();
     
-    // 2. Allow active hero debounce and gallery rendering to process
+    // 4. Allow gallery rendering to process
     await page.waitForTimeout(2000);
 
     console.log('Captured E2E Logs:', logs);

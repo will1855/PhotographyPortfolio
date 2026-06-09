@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow">
   <link rel="icon" type="image/png" href="/favicon.png?v=3">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=3">
-  <link rel="stylesheet" href="admin.css?v=3">
+  <link rel="stylesheet" href="admin.css?v=4">
   <script>
     window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
   </script>
@@ -69,6 +69,7 @@
         <div class="sidebar-label">Content</div>
         <button class="sidebar-link active" data-panel="images">Images</button>
         <button class="sidebar-link" data-panel="hero">Hero</button>
+        <button class="sidebar-link" data-panel="work">My Work</button>
         <button class="sidebar-link" data-panel="about">About</button>
         <button class="sidebar-link" data-panel="messages">Messages</button>
       </div>
@@ -111,6 +112,71 @@
           <button class="btn btn-secondary btn-sm" id="save-order-btn" style="display:none">
             Save order
           </button>
+        </div>
+      </section>
+
+      <!-- ── My Work Layout Editor ──────────────────────────────────── -->
+      <section class="panel" id="panel-work">
+
+        <!-- Toolbar -->
+        <div class="work-editor-toolbar">
+          <div class="work-section-selector">
+            <label for="work-section-select">Section</label>
+            <select id="work-section-select"></select>
+          </div>
+          <div class="work-intro-field">
+            <label for="work-intro-input">Intro</label>
+            <input type="text" id="work-intro-input" placeholder="Short intro text shown below the hero…">
+          </div>
+          <div class="work-bg-field" style="display:flex; align-items:center; gap:6px; margin-right:8px; flex-shrink:0;">
+            <label for="work-bg-input" style="font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em;">Background</label>
+            <input type="color" id="work-bg-picker" style="width: 26px; height: 26px; border: 1px solid var(--border-mid); border-radius: 4px; cursor: pointer; padding: 0; background: none;" title="Choose background color">
+            <input type="text" id="work-bg-input" placeholder="#050505" style="width: 76px; padding: 4px 6px; font-size: 0.82rem; border-radius: var(--radius); border: 1px solid var(--border-mid); background: var(--surface-2); color: var(--text); text-transform: uppercase;" maxlength="7">
+          </div>
+          <button class="btn btn-primary  btn-sm" id="work-save-btn">Save Layout</button>
+        </div>
+
+        <p class="work-editor-hint">
+          Click an image in the pool to add or remove it. Drag list items on the left to reorder. Use the sliders to tweak width, offset, vertical gap, and uppercase captions.
+        </p>
+
+        <div class="work-editor-body">
+
+          <!-- Image Pool -->
+          <div class="work-image-pool" id="work-image-pool">
+            <div class="work-pool-header">Images <span class="work-pool-count" id="work-pool-count"></span></div>
+            <div class="work-pool-grid" id="work-pool-grid"></div>
+          </div>
+
+          <!-- Staggered Layout Editor Workspace -->
+          <div class="work-editor-workspace">
+            
+            <!-- List Controls Panel -->
+            <div class="work-list-container">
+              <div class="work-panel-header">Layout Order & Settings</div>
+              <div class="work-layout-list" id="work-layout-list">
+                <!-- Sorted cards injected by JS -->
+              </div>
+            </div>
+
+            <!-- Staggered Visual Live Preview Panel -->
+            <div class="work-preview-container">
+              <div class="work-panel-header">Live Staggered Preview</div>
+              <div class="work-preview-panel" id="work-preview-panel">
+                <div class="cinematic-bg" style="position: absolute; opacity: 1; z-index: 0; pointer-events: none;">
+                  <div class="cinematic-glow cinematic-glow--warm"></div>
+                  <div class="cinematic-glow cinematic-glow--cool"></div>
+                  <div class="cinematic-grain"></div>
+                  <div class="cinematic-vignette"></div>
+                </div>
+                <div class="work-preview-stage" id="work-preview-stage">
+                  <!-- Mimicked front-end layout elements scaled down -->
+                </div>
+              </div>
+            </div>
+
+          </div>
+
         </div>
       </section>
 
@@ -323,6 +389,6 @@
 
 <!-- SortableJS from CDN — drag-and-drop ordering -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="admin.js?v=4" defer></script>
+<script src="admin.js?v=5" defer></script>
 </body>
 </html>

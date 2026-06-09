@@ -51,6 +51,7 @@ function showPanel(name) {
   document.getElementById(`panel-${name}`)?.classList.add('active');
   document.querySelector(`[data-panel="${name}"]`)?.classList.add('active');
 
+  if (name === 'work')     renderWorkPanel();
   if (name === 'hero')     renderHeroPanel();
   if (name === 'about')    renderAboutPanel();
   if (name === 'messages') renderMessagesPanel();
@@ -1485,3 +1486,465 @@ async function renderAnalyticsPanel() {
 
 // ─── Init ─────────────────────────────────────────────────────────────────────────
 checkSession();
+
+// ─── My Work — Staggered List Editor & Live Preview ───────────────────────────────────────
+
+let workImages      = [];   // All images for the active work section
+let workLayoutData  = { version: 2, intro: '', items: [] };
+let workActiveSection = null;
+
+async function renderWorkPanel() {
+  // Determine non-archive sections (check nav_label, not slug)
+  const workSections = sections.filter(s => {
+    const lbl = (s.nav_label || s.label || '').toLowerCase().trim();
+    return lbl !== 'archive';
+  });
+
+  const select = document.getElementById('work-section-select');
+  if (!select) return;
+
+  select.innerHTML = '';
+  if (workSections.length === 0) {
+    select.innerHTML = '<option value="">No work sections found</option>';
+    document.getElementById('work-preview-stage').innerHTML =
+      '<p style="padding:24px;color:var(--muted);font-size:0.85rem;">Create a non-archive section first, then add images to it.</p>';
+    return;
+  }
+
+  for (const s of workSections) {
+    const opt = document.createElement('option');
+    opt.value = s.slug;
+    opt.textContent = s.label;
+    select.appendChild(opt);
+  }
+
+  if (!workActiveSection || !workSections.find(s => s.slug === workActiveSection)) {
+    workActiveSection = workSections[0].slug;
+  }
+  select.value = workActiveSection;
+
+  await _loadWorkSectionData(workActiveSection);
+
+  select.onchange = async () => {
+    workActiveSection = select.value;
+    await _loadWorkSectionData(workActiveSection);
+  };
+}
+
+async function _loadWorkSectionData(slug) {
+  const stage = document.getElementById('work-preview-stage');
+  if (stage) stage.innerHTML = '<p style="padding:24px;color:var(--muted);font-size:0.85rem;">Loading…</p>';
+
+  try {
+    const archiveSec = sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+    const archiveSlug = archiveSec ? archiveSec.slug : 'archive';
+
+    const [imgRes, layoutRes] = await Promise.all([
+      fetch(`/api/admin/images?section=${encodeURIComponent(archiveSlug)}`, { credentials: 'include' }),
+      fetch(`/api/layout?section=${encodeURIComponent(slug)}`),
+    ]);
+
+    workImages = imgRes.ok ? await imgRes.json() : [];
+
+    if (layoutRes.ok) {
+      const ld = await layoutRes.json();
+      workLayoutData = _convertLayoutV1toV2(ld.layout || { version: 1, intro: '', items: [] }, workImages);
+    } else {
+      workLayoutData = { version: 2, intro: '', items: [] };
+    }
+    if (!workLayoutData.items) workLayoutData.items = [];
+
+    // Populate intro input
+    const introInput = document.getElementById('work-intro-input');
+    if (introInput) introInput.value = workLayoutData.intro || '';
+
+    // Populate background color inputs
+    const bgPicker = document.getElementById('work-bg-picker');
+    const bgInput  = document.getElementById('work-bg-input');
+    const bgVal    = workLayoutData.backgroundColor || '#050505';
+    if (bgPicker) bgPicker.value = bgVal;
+    if (bgInput)  bgInput.value  = bgVal;
+    
+    // Apply background color to the stage
+    const pstage = document.getElementById('work-preview-stage');
+    if (pstage) pstage.style.backgroundColor = bgVal;
+
+    _renderWorkListEditor();
+    _renderWorkPreview();
+    _renderWorkPool();
+  } catch (err) {
+    toast('Failed to load work editor data', 'error');
+    console.error('[renderWorkPanel]', err);
+  }
+}
+
+function _renderWorkListEditor() {
+  const container = document.getElementById('work-layout-list');
+  if (!container) return;
+  container.innerHTML = '';
+
+  if (workLayoutData.items.length === 0) {
+    container.innerHTML = '<p style="padding:24px;color:var(--muted);font-size:0.85rem;text-align:center;">Layout is empty. Click images in the pool to add them.</p>';
+    return;
+  }
+
+  workLayoutData.items.forEach((item, index) => {
+    const imgData = workImages.find(i => i.id === item.imageId);
+    if (!imgData) return;
+
+    const card = document.createElement('div');
+    card.className = 'work-list-item-card';
+    card.dataset.itemId = item.id;
+
+    // Left handle & Thumbnail
+    const handle = document.createElement('div');
+    handle.className = 'work-list-item-drag-handle';
+    handle.textContent = '⋮⋮';
+
+    const thumb = document.createElement('img');
+    thumb.className = 'work-list-item-thumb';
+    thumb.src = imgData.public_url_grid_thumb || imgData.public_url_thumb;
+    thumb.alt = '';
+
+    // Right Controls
+    const controls = document.createElement('div');
+    controls.className = 'work-list-item-controls';
+
+    // Width range slider (20% to 80%)
+    const widthRow = document.createElement('div');
+    widthRow.className = 'work-control-row';
+    widthRow.innerHTML = `
+      <label>Width: <span class="work-val-disp">${item.width}%</span></label>
+      <input type="range" min="20" max="80" step="5" value="${item.width}">
+    `;
+    const widthInput = widthRow.querySelector('input');
+
+    // Offset range slider (0% to 100% - width)
+    const offsetRow = document.createElement('div');
+    offsetRow.className = 'work-control-row';
+    offsetRow.innerHTML = `
+      <label>Offset: <span class="work-val-disp">${item.offset}%</span></label>
+      <input type="range" min="0" max="${100 - item.width}" step="1" value="${item.offset}">
+    `;
+    const offsetInput = offsetRow.querySelector('input');
+
+    // Gap range slider (10vh to 120vh)
+    const gapRow = document.createElement('div');
+    gapRow.className = 'work-control-row';
+    gapRow.innerHTML = `
+      <label>Gap: <span class="work-val-disp">${item.gap}vh</span></label>
+      <input type="range" min="10" max="120" step="5" value="${item.gap}">
+    `;
+    const gapInput = gapRow.querySelector('input');
+
+    // Caption Input
+    const captionRow = document.createElement('div');
+    captionRow.className = 'work-control-row work-control-row--caption';
+    captionRow.innerHTML = `
+      <input type="text" placeholder="Add uppercase caption..." value="${item.caption || ''}">
+    `;
+    const captionInput = captionRow.querySelector('input');
+
+    // Event listeners to update item state & live preview in real-time
+    widthInput.addEventListener('input', () => {
+      item.width = parseInt(widthInput.value) || 45;
+      widthRow.querySelector('.work-val-disp').textContent = `${item.width}%`;
+      
+      // Keep offset within remaining screen bounds
+      offsetInput.max = 100 - item.width;
+      if (item.offset + item.width > 100) {
+        item.offset = 100 - item.width;
+        offsetInput.value = item.offset;
+        offsetRow.querySelector('.work-val-disp').textContent = `${item.offset}%`;
+      }
+      _renderWorkPreview();
+    });
+
+    offsetInput.addEventListener('input', () => {
+      item.offset = parseInt(offsetInput.value) || 0;
+      offsetRow.querySelector('.work-val-disp').textContent = `${item.offset}%`;
+      _renderWorkPreview();
+    });
+
+    gapInput.addEventListener('input', () => {
+      item.gap = parseInt(gapInput.value) || 80;
+      gapRow.querySelector('.work-val-disp').textContent = `${item.gap}vh`;
+      _renderWorkPreview();
+    });
+
+    captionInput.addEventListener('input', () => {
+      item.caption = captionInput.value;
+      _renderWorkPreview();
+    });
+
+    controls.appendChild(widthRow);
+    controls.appendChild(offsetRow);
+    controls.appendChild(gapRow);
+    controls.appendChild(captionRow);
+
+    // Delete Button
+    const del = document.createElement('button');
+    del.className = 'work-list-item-delete';
+    del.textContent = '×';
+    del.title = 'Remove';
+    del.addEventListener('click', () => {
+      _removeItemFromLayout(item.id);
+    });
+
+    card.appendChild(handle);
+    card.appendChild(thumb);
+    card.appendChild(controls);
+    card.appendChild(del);
+
+    container.appendChild(card);
+  });
+
+  // Re-initialise SortableJS
+  if (window.Sortable) {
+    Sortable.create(container, {
+      handle: '.work-list-item-drag-handle',
+      animation: 150,
+      onEnd: () => {
+        const sortedItems = [];
+        container.querySelectorAll('.work-list-item-card').forEach(card => {
+          const id = card.dataset.itemId;
+          const found = workLayoutData.items.find(i => i.id === id);
+          if (found) sortedItems.push(found);
+        });
+        workLayoutData.items = sortedItems;
+        _renderWorkPreview();
+      }
+    });
+  }
+}
+
+function _renderWorkPreview() {
+  const stage = document.getElementById('work-preview-stage');
+  if (!stage) return;
+  stage.innerHTML = '';
+
+  workLayoutData.items.forEach(item => {
+    const imgData = workImages.find(i => i.id === item.imageId);
+    if (!imgData) return;
+
+    const block = document.createElement('div');
+    block.className = 'work-preview-item';
+    block.style.width = `${item.width}%`;
+    block.style.marginLeft = `${item.offset}%`;
+    // Scale down gap height in preview so it's easier to scan visually (1vh -> 3px in preview stage)
+    block.style.marginBottom = `${item.gap * 3.5}px`;
+
+    const img = document.createElement('img');
+    img.src = imgData.public_url_grid_thumb || imgData.public_url_thumb;
+    img.alt = '';
+    if (imgData.width && imgData.height) {
+      img.style.aspectRatio = `${imgData.width} / ${imgData.height}`;
+    }
+
+    block.appendChild(img);
+
+    if (item.caption && item.caption.trim()) {
+      const cap = document.createElement('div');
+      cap.className = 'work-preview-caption';
+      cap.textContent = item.caption;
+      block.appendChild(cap);
+    }
+
+    stage.appendChild(block);
+  });
+}
+
+function _renderWorkPool() {
+  const pool    = document.getElementById('work-pool-grid');
+  const counter = document.getElementById('work-pool-count');
+  if (!pool) return;
+  pool.innerHTML = '';
+
+  const onCanvas = new Set(
+    (workLayoutData.items || []).filter(i => i.type === 'image').map(i => i.imageId)
+  );
+  if (counter) counter.textContent = `${onCanvas.size} / 18`;
+
+  for (const img of workImages) {
+    const active = onCanvas.has(img.id);
+    const item   = document.createElement('div');
+    item.className = `work-pool-item${active ? ' work-pool-item--active' : ''}`;
+    item.title = active ? 'Remove from layout' : 'Add to layout';
+    item.innerHTML = `
+      <img src="${img.public_url_grid_thumb || img.public_url_thumb}" alt="" loading="lazy">
+      <div class="work-pool-check">${active ? '✓' : '+'}</div>
+    `;
+    item.addEventListener('click', () => {
+      if (active) {
+        const ex = workLayoutData.items?.find(i => i.type === 'image' && i.imageId === img.id);
+        if (ex) _removeItemFromLayout(ex.id);
+      } else {
+        if (onCanvas.size >= 18) { toast('Maximum 18 images on canvas', 'warning'); return; }
+        _addImageToLayout(img.id);
+      }
+    });
+    pool.appendChild(item);
+  }
+}
+
+function _addImageToLayout(imageId) {
+  const imgData = workImages.find(i => i.id === imageId);
+  if (!imgData) return;
+
+  const item = {
+    id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+    type: 'image',
+    imageId,
+    caption: imgData.title || '',
+    width: 45, // default
+    offset: 15, // default
+    gap: 80 // default
+  };
+
+  if (!workLayoutData.items) workLayoutData.items = [];
+  workLayoutData.items.push(item);
+
+  _renderWorkListEditor();
+  _renderWorkPreview();
+  _renderWorkPool();
+}
+
+function _removeItemFromLayout(itemId) {
+  workLayoutData.items = (workLayoutData.items || []).filter(i => i.id !== itemId);
+  _renderWorkListEditor();
+  _renderWorkPreview();
+  _renderWorkPool();
+}
+
+async function _saveWorkLayout() {
+  const btn = document.getElementById('work-save-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
+
+  try {
+    workLayoutData.intro = document.getElementById('work-intro-input')?.value || '';
+    workLayoutData.backgroundColor = document.getElementById('work-bg-input')?.value || '#050505';
+
+    const res = await fetch('/api/admin/layout', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ section: workActiveSection, layout: workLayoutData }),
+    });
+
+    if (res.ok) {
+      toast('Layout saved successfully');
+    } else {
+      const d = await res.json();
+      toast(d.error || 'Failed to save layout', 'error');
+    }
+  } catch {
+    toast('Connection error', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Save Layout'; }
+  }
+}
+
+function _convertLayoutV1toV2(layoutData, images) {
+  if (!layoutData || !Array.isArray(layoutData.items)) {
+    return { version: 2, intro: layoutData?.intro || '', backgroundColor: layoutData?.backgroundColor || '#050505', items: [] };
+  }
+  if (layoutData.version === 2) return layoutData;
+
+  const items = [];
+  const v1Items = [...layoutData.items];
+  
+  // Sort old absolute items by y coordinate
+  v1Items.sort((a, b) => a.y - b.y);
+
+  // Group images and find nearby text boxes to merge as captions
+  const v1Images = v1Items.filter(i => i.type === 'image');
+  const v1Texts = v1Items.filter(i => i.type === 'text');
+
+  v1Images.forEach((imgItem, idx) => {
+    const imgData = images.find(i => i.id === imgItem.imageId);
+    if (!imgData) return;
+
+    // Find nearby text box (within 300px vertically below the image)
+    let caption = '';
+    const nearbyTextIdx = v1Texts.findIndex(t => t.y >= imgItem.y && t.y <= imgItem.y + imgItem.h + 300);
+    if (nearbyTextIdx !== -1) {
+      caption = v1Texts[nearbyTextIdx].content || '';
+      v1Texts.splice(nearbyTextIdx, 1);
+    } else {
+      caption = imgData.title || '';
+    }
+
+    // Estimate width and offset as percentages of 1200px stage
+    const width = Math.max(20, Math.min(80, Math.round((imgItem.w / 1200) * 100)));
+    const offset = Math.max(0, Math.min(100 - width, Math.round((imgItem.x / 1200) * 100)));
+
+    // Estimate gap based on y-distance to the next image
+    let gap = 80; // default 80vh
+    if (idx < v1Images.length - 1) {
+      const nextImg = v1Images[idx + 1];
+      const pxGap = nextImg.y - (imgItem.y + imgItem.h);
+      if (pxGap > 0) {
+        gap = Math.max(10, Math.min(120, Math.round(pxGap / 10)));
+      }
+    }
+
+    items.push({
+      id: imgItem.id || `item-${Date.now()}-${idx}`,
+      type: 'image',
+      imageId: imgItem.imageId,
+      caption: caption,
+      width: width,
+      offset: offset,
+      gap: gap
+    });
+  });
+
+  return {
+    version: 2,
+    intro: layoutData.intro || '',
+    backgroundColor: layoutData.backgroundColor || '#050505',
+    items: items
+  };
+}
+
+// Toolbar save button listener
+document.getElementById('work-save-btn')?.addEventListener('click', _saveWorkLayout);
+
+// Background color input listeners
+const workBgPicker = document.getElementById('work-bg-picker');
+const workBgInput  = document.getElementById('work-bg-input');
+const workStage    = document.getElementById('work-preview-stage');
+
+if (workBgPicker && workBgInput) {
+  workBgPicker.addEventListener('input', () => {
+    workBgInput.value = workBgPicker.value;
+    if (workStage) workStage.style.backgroundColor = workBgPicker.value;
+  });
+
+  workBgInput.addEventListener('input', () => {
+    let val = workBgInput.value.trim();
+    if (val && !val.startsWith('#')) {
+      val = '#' + val;
+    }
+    if (/^#[0-9A-Fa-f]{6}$/.test(val) || /^#[0-9A-Fa-f]{3}$/.test(val)) {
+      workBgPicker.value = val;
+      if (workStage) workStage.style.backgroundColor = val;
+    }
+  });
+}
+
+// Cinematic background mouse reactivity inside preview panel
+let _adminMouseFrame = null;
+document.getElementById('work-preview-panel')?.addEventListener('mousemove', (e) => {
+  if (activePanel !== 'work') return;
+  if (_adminMouseFrame) cancelAnimationFrame(_adminMouseFrame);
+  _adminMouseFrame = requestAnimationFrame(() => {
+    const wrapper = document.getElementById('work-preview-panel');
+    if (!wrapper) return;
+    const rect = wrapper.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    wrapper.style.setProperty('--mouse-x', `${dx}px`);
+    wrapper.style.setProperty('--mouse-y', `${dy}px`);
+  });
+});

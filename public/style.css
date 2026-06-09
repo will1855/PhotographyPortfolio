@@ -10,10 +10,16 @@
 }
 
 :root {
-  --bg:     #050505;
+  --bg:     #080808;
   --text:   #f3f3f0;
   --muted:  rgba(243, 243, 240, 0.72);
   --header-h: 56px;
+
+  /* Cinematic background controls */
+  --bg-warm-glow-opacity: 0.04;
+  --bg-cool-glow-opacity: 0;
+  --bg-grain-opacity: 0.04;
+  --bg-vignette-opacity: 0.35;
 }
 
 html { scroll-behavior: auto; }
@@ -25,6 +31,7 @@ body {
   font-family: "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  transition: background-color 500ms ease;
 }
 
 body.preload * { transition: none !important; }
@@ -50,6 +57,7 @@ main {
   position: relative;
   z-index: 5;
   background: var(--bg);
+  transition: opacity 500ms ease, background-color 500ms ease;
 }
 
 
@@ -409,6 +417,38 @@ nav a.active {
 }
 
 
+/* ── No-Hero Mode (My Work / Archive tabs) ─────────────────────────────────── */
+/* Applied by JS when rendering a section page (not the Home tab) */
+body.no-hero .hero {
+  display: none;
+}
+
+/* No padding top — images/content start flush at the very top; nav floats over */
+body.no-hero main {
+  padding-top: 0;
+}
+
+/* Non-clickable images on My Work — remove pointer cursor */
+body.no-hero .gallery.work-editorial img,
+body.no-hero .gallery.work-editorial--custom img {
+  cursor: default;
+  pointer-events: none;
+}
+body.no-hero .gallery.work-editorial .work-item img:hover {
+  transform: none;
+}
+
+/* ── Home Mode — hero-only, no scroll ──────────────────────────────────────── */
+/* When on the Home tab the page is a single full-screen hero; nothing below. */
+body:not(.no-hero) {
+  overflow: hidden;
+}
+
+/* Hide footer entirely on the Home tab */
+body:not(.no-hero) #app-content footer {
+  display: none;
+}
+
 /* ── Gallery ───────────────────────────────────────────────────────────────── */
 .gallery {
   display: grid;
@@ -429,7 +469,7 @@ nav a.active {
   margin: 0;
   padding: 0;
   min-height: 0;
-  transition: opacity 600ms ease, transform 600ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: opacity 1200ms cubic-bezier(0.16, 1, 0.3, 1), transform 800ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .gallery img.loaded { opacity: 1; }
@@ -638,8 +678,8 @@ nav a.active {
 
 .about-content {
   flex: 1;
-  padding: calc(var(--header-h) + 60px) 22px 80px;
-  max-width: 660px;
+  padding: 100px 40px 80px;
+  max-width: 960px;
 }
 
 /* Profile card — liquid glass style matching the nav pill */
@@ -734,15 +774,15 @@ nav a.active {
 
 /* ── Contact Form ──────────────────────────────────────────────────────────── */
 .contact-form {
-  margin-top: 60px;
+  margin-top: 40px;
   max-width: 480px;
 }
 
 .contact-form .field {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 20px;
+  gap: 6px;
+  margin-bottom: 14px;
 }
 
 .contact-form label {
@@ -824,22 +864,32 @@ footer {
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Scroll-triggered reveal */
+/* Scroll-triggered reveal (generic class for layout blocks) */
 .reveal-on-scroll {
-  opacity: 0 !important;
+  opacity: 0;
   transform: translateY(24px) scale(0.985);
   transition:
-    opacity   800ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+    opacity   1200ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .reveal-on-scroll.revealed {
-  opacity: 1 !important;
-  transform: translateY(0) scale(1) !important;
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* Scroll reveal specifically for gallery images: they must ALSO be loaded to show opacity: 1 */
+.gallery img.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(24px) scale(0.985);
+}
+.gallery img.reveal-on-scroll.revealed.loaded {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .gallery img.reveal-on-scroll.revealed:hover {
-  transform: scale(1.008) translateZ(0) !important;
+  transform: scale(1.008) translateZ(0);
   z-index: 10;
 }
 
@@ -871,7 +921,7 @@ footer {
   }
 
   .about-content {
-    padding: calc(var(--header-h) + 32px) 14px 60px;
+    padding: 72px 22px 60px;
   }
 
   .lightbox-close {
@@ -982,6 +1032,160 @@ header.ui-on-light nav a.active {
 
 
 /* ══════════════════════════════════════════════════════════════════════════
+   My Work — Editorial Layout
+   Applies when section is not "archive". The .gallery div gets the class
+   .work-editorial (default flow) or .work-editorial--custom (JSON positions).
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* Override the masonry grid when in editorial mode */
+.gallery.work-editorial,
+.gallery.work-editorial--custom {
+  display: block;
+  grid-auto-rows: unset;
+  overflow: visible;
+  padding: 0 40px 140px;
+  max-width: none;
+}
+
+/* ── Intro text ─────────────────────────────────────────────────────── */
+.work-intro {
+  padding: 56px 40px 8px;
+}
+
+.work-intro-text {
+  font-size: clamp(0.88rem, 1.3vw, 1.05rem);
+  color: var(--muted);
+  line-height: 1.8;
+  font-weight: 300;
+  letter-spacing: -0.005em;
+  max-width: 520px;
+  font-style: italic;
+}
+
+/* ── Work/Editorial Layout Staggered Items ───────────────────────────── */
+.gallery.work-editorial,
+.gallery.work-editorial--custom {
+  display: block !important;
+  position: relative;
+  width: 100%;
+  height: auto !important;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 40px 140px;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.gallery.work-editorial .work-item,
+.gallery.work-editorial--custom .work-item {
+  display: block;
+  position: relative;
+  overflow: visible;
+  /* Proportions are driven by JS-assigned CSS variables */
+  width: var(--item-w, 100%);
+  margin-left: var(--item-ml, 0%);
+  margin-bottom: var(--item-mb, 80vh);
+  box-sizing: border-box;
+}
+
+.gallery.work-editorial .work-item img,
+.gallery.work-editorial--custom .work-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: default;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 1200ms cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.gallery.work-editorial .work-item img.loaded,
+.gallery.work-editorial--custom .work-item img.loaded {
+  opacity: 1;
+}
+
+/* Grayson style: quiet and subtle hover */
+.gallery.work-editorial .work-item img:hover,
+.gallery.work-editorial--custom .work-item img:hover {
+  opacity: 0.93;
+  transform: scale(1.004) translateZ(0);
+}
+
+/* Captions: clean uppercase sans-serif grotesque */
+.work-item-caption {
+  font-family: var(--font-sans, -apple-system, sans-serif);
+  font-size: clamp(0.7rem, 0.85vw, 0.82rem);
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: var(--muted);
+  margin-top: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  transition: color 0.3s ease;
+}
+
+.gallery.work-editorial .work-item:hover .work-item-caption,
+.gallery.work-editorial--custom .work-item:hover .work-item-caption {
+  color: var(--text);
+}
+
+/* Scroll-reveal for work items */
+.work-item.reveal-on-scroll {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity 1200ms cubic-bezier(0.16, 1, 0.3, 1),
+              transform 1200ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.work-item.revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ── Mobile: Maintain staggered editorial look with scaled proportions ── */
+@media (max-width: 768px) {
+  .gallery.work-editorial,
+  .gallery.work-editorial--custom {
+    padding: 20px 18px 80px !important;
+    max-width: none;
+  }
+
+  .work-intro {
+    padding: 30px 18px 4px;
+  }
+
+  .gallery.work-editorial .work-item,
+  .gallery.work-editorial--custom .work-item {
+    position: relative !important;
+    /* Scale width up for readability on mobile (default 1.25x scaling) */
+    width: clamp(65%, calc(var(--item-w) * 1.25), 94%) !important;
+    /* Scale margin offset down to ensure no overflow */
+    margin-left: calc(var(--item-ml) * 0.45) !important;
+    /* Scale down vertical gap (min 150px, max 450px) */
+    margin-bottom: clamp(150px, calc(var(--item-mb) * 0.6), 450px) !important;
+  }
+
+  .gallery.work-editorial .work-item img,
+  .gallery.work-editorial--custom .work-item img {
+    position: static !important;
+    height: auto !important;
+    width: 100% !important;
+    aspect-ratio: var(--item-ar, auto);
+  }
+
+  .work-item-caption {
+    font-size: 0.72rem !important;
+    margin-top: 10px !important;
+  }
+
+  .work-item.reveal-on-scroll { 
+    opacity: 1 !important; 
+    transform: none !important; 
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    HARD OVERRIDE — Invisible header container
    Ensures no browser default, cached, or injected rule can produce a visible
    grey bar above the hero. Only the name (h1) and nav pill are visible.
@@ -1009,4 +1213,128 @@ header h1,
 header h1 a,
 nav {
   pointer-events: auto;
+}
+
+/* ── Cinematic Darkroom Background ────────────────────────────────────────── */
+.cinematic-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 1200ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  background: var(--bg);
+}
+
+/* Active state triggered on My Work pages */
+body.cinematic-bg-active .cinematic-bg {
+  opacity: 1;
+}
+
+/* ── My Work — Warm Charcoal Atmosphere ──
+   Overrides the global cinematic variables to produce:
+   • Matte warm charcoal base (slight brown warmth vs pure black)
+   • Very subtle grain (overlay blend — doesn't compete with images)
+   • Soft, deep vignette pulling focus to centre
+   • Faint amber glow off-centre for warmth without colour cast
+   ──────────────────────────────────────── */
+body.cinematic-bg-active {
+  --bg:                  #100d0a;   /* warm charcoal — near-black with amber undertone */
+  --bg-warm-glow-opacity: 0.09;    /* subtle amber warmth, not orange */
+  --bg-grain-opacity:     0.055;   /* visible but not distracting */
+  --bg-vignette-opacity:  0.60;    /* deep soft edges pull eye to centre */
+}
+
+body.cinematic-bg-active main {
+  background: transparent !important;
+}
+
+/* Soft blurred radial light layers */
+.cinematic-glow {
+  position: absolute;
+  width: 150vmax;
+  height: 150vmax;
+  border-radius: 50%;
+  top: -25%;
+  left: -25%;
+  mix-blend-mode: screen;
+  will-change: transform;
+  filter: blur(80px);
+}
+
+.cinematic-glow--warm {
+  /* Muted amber — sits in top-left corner for subtle warmth, never garish */
+  background: radial-gradient(
+    circle,
+    rgba(210, 155, 90, 0.28)  0%,
+    rgba(170, 100, 40, 0.06) 40%,
+    transparent 68%
+  );
+  opacity: var(--bg-warm-glow-opacity);
+  top: -30%;
+  left: -15%;
+  animation: none;
+  transform: none;
+}
+
+.cinematic-glow--cool {
+  background: radial-gradient(circle, rgba(135, 175, 210, 0.25) 0%, rgba(85, 115, 145, 0.06) 45%, transparent 75%);
+  opacity: var(--bg-cool-glow-opacity);
+  animation: none;
+  transform: none;
+  display: none;
+}
+
+/* High-fidelity procedural film grain overlay */
+.cinematic-grain {
+  position: absolute;
+  inset: 0;
+  opacity: var(--bg-grain-opacity);
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+/* Soft darkroom edges vignette — two layers for smooth falloff */
+.cinematic-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 80% 80% at 50% 50%, transparent 38%, rgba(0, 0, 0, var(--bg-vignette-opacity)) 100%);
+}
+
+@keyframes drift-warm {
+  0% {
+    transform: translate(0, 0) scale(1) rotate(0deg);
+  }
+  50% {
+    transform: translate(8vw, 6vh) scale(1.04) rotate(30deg);
+  }
+  100% {
+    transform: translate(-4vw, 12vh) scale(0.96) rotate(60deg);
+  }
+}
+
+@keyframes drift-cool {
+  0% {
+    transform: translate(0, 0) scale(1.04) rotate(180deg);
+  }
+  50% {
+    transform: translate(-10vw, 8vh) scale(0.96) rotate(140deg);
+  }
+  100% {
+    transform: translate(6vw, -4vh) scale(1) rotate(100deg);
+  }
+}
+
+/* Graceful degradation for low performance / accessibility environments */
+@media (prefers-reduced-motion: reduce) {
+  .cinematic-glow--warm,
+  .cinematic-glow--cool {
+    animation: none !important;
+    transform: none !important;
+  }
 }

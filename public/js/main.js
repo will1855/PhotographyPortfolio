@@ -2,6 +2,7 @@
 
 import { logAnalyticsEvent } from './analytics.js';
 import { renderGallery } from './gallery.js';
+import { renderWorkLayout } from './gallery.js';
 import { renderLightboxSlides } from './lightbox.js';
 import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
@@ -61,14 +62,67 @@ export async function initPage() {
   }
 
   const isAbout = window.location.pathname.includes('/about');
+  // "Home" = on the root path with no ?section= param
+  const urlSection = new URLSearchParams(window.location.search).get('section');
+  const isHome = !isAbout && (window.location.pathname === '/' || window.location.pathname === '/index.html') && !urlSection;
+
+  // Toggle hero visibility: show on Home, hide on Work/Archive/About
+  document.body.classList.toggle('no-hero', !isHome);
+
+  // Always reset custom background color initially when loading any page/section
+  document.documentElement.style.setProperty('--bg', '');
+  document.body.classList.remove('cinematic-bg-active');
 
   if (isAbout) {
     if (siteConfigCache) loadAbout(siteConfigCache);
+  } else if (isHome) {
+    // ── Home tab: hero only — no gallery rendering ──
+    // Clean up any gallery content left from a previous section visit
+    const prevIntro = document.getElementById('work-intro');
+    if (prevIntro) prevIntro.remove();
+    if (dom.gallery) {
+      dom.gallery.innerHTML = '';
+      dom.gallery.classList.remove('work-editorial', 'work-editorial--custom');
+      dom.gallery.style.height   = '';
+      dom.gallery.style.position = '';
+    }
   } else {
+    // ── Section tab (My Work / Archive): render gallery, no hero ──
+    const prevIntro = document.getElementById('work-intro');
+    if (prevIntro) prevIntro.remove();
+    if (dom.gallery) {
+      dom.gallery.classList.remove('work-editorial', 'work-editorial--custom');
+      dom.gallery.style.height   = '';
+      dom.gallery.style.position = '';
+    }
+
     if (dom.gallery) {
       try {
         let data;
-        const currentSection = new URLSearchParams(window.location.search).get('section') || 'archive';
+        let currentSection = urlSection;
+        if (!currentSection && siteConfigCache?.sections) {
+          const archiveSec = siteConfigCache.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+          if (archiveSec) currentSection = archiveSec.slug;
+        }
+        if (!currentSection) currentSection = 'archive';
+        
+        state.section = currentSection;
+
+        const isEditorial = (() => {
+          if (!siteConfigCache?.sections) return true; // default to editorial
+          const sec = siteConfigCache.sections.find(s => s.slug === state.section);
+          if (!sec) return true;
+          const lbl = (sec.nav_label || sec.label || '').toLowerCase().trim();
+          return lbl !== 'archive';
+        })();
+
+        let imgSection = state.section;
+        if (isEditorial && siteConfigCache?.sections) {
+          const archiveSec = siteConfigCache.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+          if (archiveSec) {
+            imgSection = archiveSec.slug;
+          }
+        }
 
         if (siteConfigCache?.initial_images && state.section === currentSection) {
           data = siteConfigCache.initial_images;
@@ -77,14 +131,28 @@ export async function initPage() {
         } else if (state.sectionCache.has(state.section)) {
           data = state.sectionCache.get(state.section);
         } else {
-          const imgRes = await fetch(`/api/images?section=${encodeURIComponent(state.section)}`);
+          const imgRes = await fetch(`/api/images?section=${encodeURIComponent(imgSection)}`);
           data = await imgRes.json();
           state.sectionCache.set(state.section, data);
         }
 
         if (Array.isArray(data) && data.length > 0) {
           state.images = data;
-          renderGallery();
+
+          if (isEditorial) {
+            let layoutData = null;
+            try {
+              const layoutRes = await fetch(`/api/layout?section=${encodeURIComponent(state.section)}`);
+              if (layoutRes.ok) {
+                const layoutJson = await layoutRes.json();
+                layoutData = layoutJson.layout;
+              }
+            } catch { /* gracefully ignore — will use default layout */ }
+            renderWorkLayout(data, layoutData);
+          } else {
+            renderGallery();
+          }
+
           renderLightboxSlides();
         } else {
           dom.gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">No images yet.</p>';
@@ -97,7 +165,7 @@ export async function initPage() {
   }
 
   // Asynchronous page view logging
-  logAnalyticsEvent('page_view', isAbout ? 'about' : state.section);
+  logAnalyticsEvent('page_view', isAbout ? 'about' : isHome ? 'home' : state.section);
 
   // Re-sample hero brightness after each page/section load
   scheduleContrastEval(700);
@@ -544,10 +612,15 @@ function applyConfig(config) {
   const site_title = config.site_title || 'Will Davies';
   const sections = config.sections || [];
   const isAboutPage = window.location.pathname.includes('/about');
+  const urlSection = new URLSearchParams(window.location.search).get('section');
+  const isHomePage = !isAboutPage && !urlSection &&
+    (window.location.pathname === '/' || window.location.pathname === '/index.html');
   const sectionConfig = sections.find(s => s.slug === state.section);
 
   if (isAboutPage) {
     document.title = `${config.about_title || 'About'} — ${site_title}`;
+  } else if (isHomePage) {
+    document.title = site_title;
   } else if (sectionConfig && sectionConfig.slug !== 'archive') {
     document.title = `${sectionConfig.label} — ${site_title}`;
   } else {
@@ -559,15 +632,28 @@ function applyConfig(config) {
   }
 
   // Dynamic Navigation menu rendering
-  if (dom.siteNav && (dom.siteNav.children.length === 0 || dom.siteNav.dataset.built !== 'true')) {
+  // Force rebuild if: empty, not yet marked built, OR missing the Home link (stale nav from old code)
+  const hasHomeLink = !!dom.siteNav?.querySelector('a[href="/"]');
+  if (dom.siteNav && (dom.siteNav.children.length === 0 || dom.siteNav.dataset.built !== 'true' || !hasHomeLink)) {
     dom.siteNav.innerHTML = '';
+
+    // ── Home link (first) ──
+    const homeLink = document.createElement('a');
+    homeLink.href = '/';
+    homeLink.textContent = 'Home';
+    if (isHomePage) homeLink.classList.add('active');
+    dom.siteNav.appendChild(homeLink);
+
+    // ── Section links ──
     for (const s of sections) {
       const a = document.createElement('a');
       a.href = `/?section=${encodeURIComponent(s.slug)}`;
       a.textContent = s.nav_label || s.label;
-      if (!isAboutPage && s.slug === state.section) a.classList.add('active');
+      if (!isAboutPage && !isHomePage && s.slug === state.section) a.classList.add('active');
       dom.siteNav.appendChild(a);
     }
+
+    // ── About link (last) ──
     const aboutLink = document.createElement('a');
     aboutLink.href = '/about';
     aboutLink.textContent = config.about_title || 'About';
@@ -580,23 +666,37 @@ function applyConfig(config) {
       const url = new URL(a.href, window.location.origin);
       if (url.pathname === '/about') {
         a.classList.toggle('active', isAboutPage);
+      } else if (!url.searchParams.get('section') && url.pathname === '/') {
+        // Home link — active only when on the bare home page
+        a.classList.toggle('active', isHomePage);
       } else {
         const s = url.searchParams.get('section');
-        a.classList.toggle('active', !isAboutPage && s === state.section);
+        a.classList.toggle('active', !isAboutPage && !isHomePage && s === state.section);
       }
     });
   }
 
-  if (sectionConfig && !isAboutPage) {
-    if (dom.heroKicker) {
-      dom.heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
-    }
-    if (dom.heroLink) {
-      dom.heroLink.textContent = sectionConfig.hero_link_text || 'View';
-    }
-
-    if (sectionConfig.heroes && sectionConfig.heroes.length > 0) {
-      initHeroSlideshow(sectionConfig.heroes);
+  // Hero CTA / slideshow — only boot when we're on the Home tab
+  if (isHomePage) {
+    // Find the first non-archive section to use for the hero kicker/link
+    const heroSection = sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() !== 'archive') || sections[0];
+    if (heroSection) {
+      if (dom.heroKicker) {
+        dom.heroKicker.textContent = heroSection.hero_kicker || heroSection.label || '';
+      }
+      if (dom.heroLink) {
+        dom.heroLink.textContent = heroSection.hero_link_text || 'View Work';
+        // Point the hero CTA to the first work section
+        dom.heroLink.href = `/?section=${encodeURIComponent(heroSection.slug)}`;
+      }
+      if (heroSection.heroes && heroSection.heroes.length > 0) {
+        initHeroSlideshow(heroSection.heroes);
+      }
+    } else if (sectionConfig) {
+      // Fallback: use the currently resolved section
+      if (dom.heroKicker) dom.heroKicker.textContent = sectionConfig.hero_kicker || sectionConfig.label || '';
+      if (dom.heroLink)   dom.heroLink.textContent   = sectionConfig.hero_link_text || 'View Work';
+      if (sectionConfig.heroes?.length > 0) initHeroSlideshow(sectionConfig.heroes);
     }
   }
 }
@@ -606,10 +706,14 @@ function applyConfig(config) {
  */
 function applyFallbackNav() {
   const isAboutPage = window.location.pathname.includes('/about');
+  const urlSection = new URLSearchParams(window.location.search).get('section');
+  const isHomePage = !isAboutPage && !urlSection &&
+    (window.location.pathname === '/' || window.location.pathname === '/index.html');
   if (dom.siteNav) {
     dom.siteNav.innerHTML = `
-      <a href="/?section=archive"${!isAboutPage && state.section === 'archive' ? ' class="active"' : ''}>Archive</a>
-      <a href="/?section=studies"${!isAboutPage && state.section === 'studies' ? ' class="active"' : ''}>Studies</a>
+      <a href="/"${isHomePage ? ' class="active"' : ''}>Home</a>
+      <a href="/?section=archive"${!isAboutPage && !isHomePage && state.section === 'archive' ? ' class="active"' : ''}>Archive</a>
+      <a href="/?section=studies"${!isAboutPage && !isHomePage && state.section === 'studies' ? ' class="active"' : ''}>Studies</a>
       <a href="/about"${isAboutPage ? ' class="active"' : ''}>About</a>
     `;
   }
@@ -643,7 +747,7 @@ function loadAbout(config) {
   }
 
   textCol += `
-    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms; margin-top: 48px;">
+    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms; margin-top: 28px;">
       <h3 style="font-size:1.2rem;margin-bottom:24px;font-weight:500;">Send a message</h3>
       <div class="field">
         <label for="name">Name</label>
@@ -655,7 +759,7 @@ function loadAbout(config) {
       </div>
       <div class="field">
         <label for="message">Message</label>
-        <textarea id="message" name="message" rows="5" required placeholder="How can I help?"></textarea>
+        <textarea id="message" name="message" rows="3" required placeholder="How can I help?"></textarea>
       </div>
       <button type="submit" class="btn-submit" id="submit-btn">Send Message</button>
       <div id="form-status"></div>
@@ -770,16 +874,26 @@ async function handleRoute(url) {
   const isHome = urlObj.pathname === '/' || urlObj.pathname === '/index.html';
   const hasGallery = !!document.getElementById('gallery');
 
-  // Fast client-side section shift optimization
-  if (isHome && hasGallery && newSection) {
-    state.section = newSection;
+  // Fast client-side navigation (same HTML shell — Home ↔ sections, sections ↔ sections)
+  // Works for: Home→Section, Section→Section, Section→Home (no-section)
+  if (isHome && hasGallery) {
+    if (newSection) state.section = newSection;
     const performUpdate = async () => {
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);
       await initPage();
     };
-    if (document.startViewTransition) document.startViewTransition(performUpdate);
-    else performUpdate();
+    if (document.startViewTransition) {
+      const transition = document.startViewTransition(performUpdate);
+      window.activeViewTransition = transition.finished;
+      transition.finished.finally(() => {
+        if (window.activeViewTransition === transition.finished) {
+          window.activeViewTransition = null;
+        }
+      });
+    } else {
+      performUpdate();
+    }
     return;
   }
 
@@ -795,7 +909,12 @@ async function handleRoute(url) {
       return;
     }
 
-    state.section = newSection || 'archive';
+    let resolvedSection = newSection;
+    if (!resolvedSection && siteConfigCache?.sections) {
+      const archiveSec = siteConfigCache.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+      if (archiveSec) resolvedSection = archiveSec.slug;
+    }
+    state.section = resolvedSection || 'archive';
 
     const performUpdate = async () => {
       const appContent = document.getElementById('app-content');
@@ -816,7 +935,13 @@ async function handleRoute(url) {
     };
 
     if (document.startViewTransition) {
-      document.startViewTransition(() => performUpdate());
+      const transition = document.startViewTransition(() => performUpdate());
+      window.activeViewTransition = transition.finished;
+      transition.finished.finally(() => {
+        if (window.activeViewTransition === transition.finished) {
+          window.activeViewTransition = null;
+        }
+      });
     } else {
       performUpdate();
     }
@@ -891,6 +1016,19 @@ window.addEventListener('resize', () => {
 window.addEventListener('load', () => {
   requestAnimationFrame(() => updateLiquidNavPill(true));
 });
+
+// Cinematic background mouse reactivity (subtle parallax drift) - DISABLED
+// let _mouseRequestFrame = null;
+// window.addEventListener('mousemove', (e) => {
+//   if (!document.body.classList.contains('cinematic-bg-active')) return;
+//   if (_mouseRequestFrame) cancelAnimationFrame(_mouseRequestFrame);
+//   _mouseRequestFrame = requestAnimationFrame(() => {
+//     const dx = e.clientX - window.innerWidth / 2;
+//     const dy = e.clientY - window.innerHeight / 2;
+//     document.documentElement.style.setProperty('--mouse-x', `${dx}px`);
+//     document.documentElement.style.setProperty('--mouse-y', `${dy}px`);
+//   });
+// });
 
 // Bootstrap initial load
 initPage();
