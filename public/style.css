@@ -1,6 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Will Davies Photography — style.css
    ═══════════════════════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@700&display=swap');
 
 /* ── Reset & Root ──────────────────────────────────────────────────────────── */
 * {
@@ -1012,14 +1013,14 @@ header.ui-on-light nav a.active {
 }
 
 /* Captions: clean uppercase sans-serif grotesque */
+/* Captions: clean uppercase sans-serif grotesque in bold Archivo font */
 .work-item-caption {
-  font-family: var(--font-sans, -apple-system, sans-serif);
-  font-size: clamp(0.7rem, 0.85vw, 0.82rem);
+  font-family: 'Archivo', sans-serif;
+  font-weight: 700; /* bold */
+  font-size: var(--caption-fs, clamp(0.7rem, 0.85vw, 0.82rem));
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-weight: 400;
   color: var(--muted);
-  margin-top: 14px;
   line-height: 1.5;
   white-space: pre-wrap;
   transition: color 0.3s ease;
@@ -1028,6 +1029,63 @@ header.ui-on-light nav a.active {
 .gallery.work-editorial .work-item:hover .work-item-caption,
 .gallery.work-editorial--custom .work-item:hover .work-item-caption {
   color: var(--text);
+}
+
+/* ── Caption Position Layouts ── */
+.gallery.work-editorial .work-item.pos-above,
+.gallery.work-editorial--custom .work-item.pos-above {
+  display: flex !important;
+  flex-direction: column-reverse !important;
+}
+
+.gallery.work-editorial .work-item.pos-below,
+.gallery.work-editorial--custom .work-item.pos-below {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.gallery.work-editorial .work-item.pos-left,
+.gallery.work-editorial--custom .work-item.pos-left {
+  display: flex !important;
+  flex-direction: row-reverse !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+
+.gallery.work-editorial .work-item.pos-right,
+.gallery.work-editorial--custom .work-item.pos-right {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+
+.gallery.work-editorial .work-item.pos-left img,
+.gallery.work-editorial .work-item.pos-right img,
+.gallery.work-editorial--custom .work-item.pos-left img,
+.gallery.work-editorial--custom .work-item.pos-right img {
+  flex: 1 !important;
+  min-width: 0 !important;
+}
+
+.gallery.work-editorial .work-item.pos-left .work-item-caption,
+.gallery.work-editorial .work-item.pos-right .work-item-caption,
+.gallery.work-editorial--custom .work-item.pos-left .work-item-caption,
+.gallery.work-editorial--custom .work-item.pos-right .work-item-caption {
+  flex-shrink: 0 !important;
+  max-width: 280px !important;
+  margin-top: 0 !important;
+}
+
+/* ── Caption Alignments ── */
+.work-item-caption.align-left {
+  text-align: left;
+}
+.work-item-caption.align-center {
+  text-align: center;
+}
+.work-item-caption.align-right {
+  text-align: right;
 }
 
 /* Scroll-reveal for work items */
@@ -1057,12 +1115,27 @@ header.ui-on-light nav a.active {
   .gallery.work-editorial .work-item,
   .gallery.work-editorial--custom .work-item {
     position: relative !important;
+    display: flex !important;
+    flex-direction: column !important;
     /* Scale width up for readability on mobile (default 1.25x scaling) */
     width: clamp(65%, calc(var(--item-w) * 1.25), 94%) !important;
     /* Scale margin offset down to ensure no overflow */
     margin-left: calc(var(--item-ml) * 0.45) !important;
     /* Scale down vertical gap (min 150px, max 450px) */
     margin-bottom: clamp(150px, calc(var(--item-mb) * 0.6), 450px) !important;
+  }
+
+  .gallery.work-editorial .work-item.pos-above,
+  .gallery.work-editorial--custom .work-item.pos-above {
+    flex-direction: column-reverse !important;
+  }
+
+  .gallery.work-editorial .work-item.pos-left .work-item-caption,
+  .gallery.work-editorial .work-item.pos-right .work-item-caption,
+  .gallery.work-editorial--custom .work-item.pos-left .work-item-caption,
+  .gallery.work-editorial--custom .work-item.pos-right .work-item-caption {
+    max-width: none !important;
+    margin-top: 10px !important;
   }
 
   .gallery.work-editorial .work-item img,

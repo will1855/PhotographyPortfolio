@@ -1558,6 +1558,10 @@ async function _loadWorkSectionData(slug) {
     const introInput = document.getElementById('work-intro-input');
     if (introInput) introInput.value = workLayoutData.intro || '';
 
+    // Populate font size input
+    const fontSizeInput = document.getElementById('work-font-size-input');
+    if (fontSizeInput) fontSizeInput.value = workLayoutData.titleFontSize || 14;
+
     // Populate background color inputs
     const bgPicker = document.getElementById('work-bg-picker');
     const bgInput  = document.getElementById('work-bg-input');
@@ -1645,6 +1649,33 @@ function _renderWorkListEditor() {
     `;
     const captionInput = captionRow.querySelector('input');
 
+    // Position & Alignment selectors
+    const posAlignRow = document.createElement('div');
+    posAlignRow.className = 'work-control-row work-control-row--posalign';
+    posAlignRow.style.display = 'flex';
+    posAlignRow.style.gap = '8px';
+    posAlignRow.innerHTML = `
+      <div style="flex: 1;">
+        <label style="font-size: 0.65rem; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; display: block;">Position</label>
+        <select class="work-caption-position" style="width: 100%; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 4px; color: var(--text); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;">
+          <option value="below" ${item.captionPosition === 'below' ? 'selected' : ''}>Below</option>
+          <option value="above" ${item.captionPosition === 'above' ? 'selected' : ''}>Above</option>
+          <option value="left" ${item.captionPosition === 'left' ? 'selected' : ''}>Left</option>
+          <option value="right" ${item.captionPosition === 'right' ? 'selected' : ''}>Right</option>
+        </select>
+      </div>
+      <div style="flex: 1;">
+        <label style="font-size: 0.65rem; color: var(--muted); text-transform: uppercase; margin-bottom: 2px; display: block;">Align</label>
+        <select class="work-caption-align" style="width: 100%; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 4px; color: var(--text); padding: 4px 6px; font-size: 0.75rem; cursor: pointer;">
+          <option value="left" ${item.captionAlign === 'left' ? 'selected' : ''}>Left</option>
+          <option value="center" ${item.captionAlign === 'center' ? 'selected' : ''}>Center</option>
+          <option value="right" ${item.captionAlign === 'right' ? 'selected' : ''}>Right</option>
+        </select>
+      </div>
+    `;
+    const posSelect = posAlignRow.querySelector('.work-caption-position');
+    const alignSelect = posAlignRow.querySelector('.work-caption-align');
+
     // Event listeners to update item state & live preview in real-time
     widthInput.addEventListener('input', () => {
       item.width = parseInt(widthInput.value) || 45;
@@ -1677,10 +1708,21 @@ function _renderWorkListEditor() {
       _renderWorkPreview();
     });
 
+    posSelect.addEventListener('change', () => {
+      item.captionPosition = posSelect.value;
+      _renderWorkPreview();
+    });
+
+    alignSelect.addEventListener('change', () => {
+      item.captionAlign = alignSelect.value;
+      _renderWorkPreview();
+    });
+
     controls.appendChild(widthRow);
     controls.appendChild(offsetRow);
     controls.appendChild(gapRow);
     controls.appendChild(captionRow);
+    controls.appendChild(posAlignRow);
 
     // Delete Button
     const del = document.createElement('button');
@@ -1728,10 +1770,11 @@ function _renderWorkPreview() {
     if (!imgData) return;
 
     const block = document.createElement('div');
-    block.className = 'work-preview-item';
+    const pos = item.captionPosition || 'below';
+    block.className = `work-preview-item pos-${pos}`;
     block.style.width = `${item.width}%`;
     block.style.marginLeft = `${item.offset}%`;
-    // Scale down gap height in preview so it's easier to scan visually (1vh -> 3px in preview stage)
+    // Scale down gap height in preview so it's easier to scan visually (1vh -> 3.5px in preview stage)
     block.style.marginBottom = `${item.gap * 3.5}px`;
 
     const img = document.createElement('img');
@@ -1745,8 +1788,14 @@ function _renderWorkPreview() {
 
     if (item.caption && item.caption.trim()) {
       const cap = document.createElement('div');
-      cap.className = 'work-preview-caption';
+      const align = item.captionAlign || 'left';
+      cap.className = `work-preview-caption align-${align}`;
       cap.textContent = item.caption;
+      
+      if (workLayoutData.titleFontSize) {
+        cap.style.fontSize = `${workLayoutData.titleFontSize}px`;
+      }
+      
       block.appendChild(cap);
     }
 
@@ -1798,7 +1847,9 @@ function _addImageToLayout(imageId) {
     caption: imgData.title || '',
     width: 45, // default
     offset: 15, // default
-    gap: 80 // default
+    gap: 80, // default
+    captionPosition: 'below',
+    captionAlign: 'left'
   };
 
   if (!workLayoutData.items) workLayoutData.items = [];
@@ -1823,6 +1874,7 @@ async function _saveWorkLayout() {
   try {
     workLayoutData.intro = document.getElementById('work-intro-input')?.value || '';
     workLayoutData.backgroundColor = document.getElementById('work-bg-input')?.value || '#050505';
+    workLayoutData.titleFontSize = parseInt(document.getElementById('work-font-size-input')?.value) || 14;
 
     const res = await fetch('/api/admin/layout', {
       method:  'POST',
@@ -1848,7 +1900,15 @@ function _convertLayoutV1toV2(layoutData, images) {
   if (!layoutData || !Array.isArray(layoutData.items)) {
     return { version: 2, intro: layoutData?.intro || '', backgroundColor: layoutData?.backgroundColor || '#050505', items: [] };
   }
-  if (layoutData.version === 2) return layoutData;
+  if (layoutData.version === 2) {
+    if (Array.isArray(layoutData.items)) {
+      layoutData.items.forEach(item => {
+        if (!item.captionPosition) item.captionPosition = 'below';
+        if (!item.captionAlign) item.captionAlign = 'left';
+      });
+    }
+    return layoutData;
+  }
 
   const items = [];
   const v1Items = [...layoutData.items];
@@ -1895,7 +1955,9 @@ function _convertLayoutV1toV2(layoutData, images) {
       caption: caption,
       width: width,
       offset: offset,
-      gap: gap
+      gap: gap,
+      captionPosition: 'below',
+      captionAlign: 'left'
     });
   });
 
@@ -1930,6 +1992,15 @@ if (workBgPicker && workBgInput) {
       workBgPicker.value = val;
       if (workStage) workStage.style.backgroundColor = val;
     }
+  });
+}
+
+// Font size input listener
+const workFontSizeInput = document.getElementById('work-font-size-input');
+if (workFontSizeInput) {
+  workFontSizeInput.addEventListener('input', () => {
+    workLayoutData.titleFontSize = parseInt(workFontSizeInput.value) || 14;
+    _renderWorkPreview();
   });
 }
 

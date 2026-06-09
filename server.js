@@ -162,7 +162,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
     <link rel="preload" href="/style.css?v=14" as="style">
-    <link rel="modulepreload" href="/js/main.js?v=13">
+    <link rel="modulepreload" href="/js/main.js?v=14">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">

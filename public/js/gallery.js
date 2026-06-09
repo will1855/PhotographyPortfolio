@@ -427,6 +427,12 @@ function _renderCustomWorkLayout(images, layoutData) {
 
   const v2Layout = convertLayoutV1toV2(layoutData, images);
 
+  if (v2Layout.titleFontSize) {
+    gallery.style.setProperty('--caption-fs', `${v2Layout.titleFontSize}px`);
+  } else {
+    gallery.style.removeProperty('--caption-fs');
+  }
+
   v2Layout.items.forEach((item, order) => {
     if (item.type !== 'image') return; // V2 only renders image elements (captions inside)
     
@@ -434,7 +440,8 @@ function _renderCustomWorkLayout(images, layoutData) {
     if (!imgData) return;
 
     const el = document.createElement('div');
-    el.className = 'work-item';
+    const pos = item.captionPosition || 'below';
+    el.className = `work-item pos-${pos}`;
     
     // Set custom properties for width, offset, and vertical gap
     el.style.setProperty('--item-w', `${item.width}%`);
@@ -461,10 +468,11 @@ function _renderCustomWorkLayout(images, layoutData) {
     }
     el.appendChild(img);
 
-    // Add caption below image
+    // Add caption
     if (item.caption && item.caption.trim()) {
       const captionEl = document.createElement('div');
-      captionEl.className = 'work-item-caption';
+      const align = item.captionAlign || 'left';
+      captionEl.className = `work-item-caption align-${align}`;
       captionEl.textContent = item.caption;
       el.appendChild(captionEl);
     }
@@ -483,7 +491,15 @@ export function convertLayoutV1toV2(layoutData, images) {
   if (!layoutData || !Array.isArray(layoutData.items)) {
     return { version: 2, intro: layoutData?.intro || '', backgroundColor: layoutData?.backgroundColor || '#050505', items: [] };
   }
-  if (layoutData.version === 2) return layoutData;
+  if (layoutData.version === 2) {
+    if (Array.isArray(layoutData.items)) {
+      layoutData.items.forEach(item => {
+        if (!item.captionPosition) item.captionPosition = 'below';
+        if (!item.captionAlign) item.captionAlign = 'left';
+      });
+    }
+    return layoutData;
+  }
 
   const items = [];
   const v1Items = [...layoutData.items];
@@ -530,7 +546,9 @@ export function convertLayoutV1toV2(layoutData, images) {
       caption: caption,
       width: width,
       offset: offset,
-      gap: gap
+      gap: gap,
+      captionPosition: 'below',
+      captionAlign: 'left'
     });
   });
 
