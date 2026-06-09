@@ -19,6 +19,19 @@ export const revealObserver = new IntersectionObserver((entries) => {
   threshold: 0.05
 });
 
+// Captions observer: fires when the caption text itself enters the viewport
+export const captionObserver = new IntersectionObserver((entries) => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      entry.target.classList.add('caption-revealed');
+      captionObserver.unobserve(entry.target);
+    }
+  });
+}, {
+  rootMargin: '0px 0px -40px 0px',
+  threshold: 0.1
+});
+
 /**
  * Triggers image load fade-in after a short deliberate delay.
  * @param {HTMLImageElement} img
@@ -401,6 +414,11 @@ function _renderDefaultWorkLayout(images) {
       captionEl.className = 'work-item-caption';
       captionEl.textContent = imgData.title;
       item.appendChild(captionEl);
+      if (index < 3) {
+        captionEl.classList.add('caption-revealed');
+      } else {
+        captionObserver.observe(captionEl);
+      }
     }
 
     gallery.appendChild(item);
@@ -475,6 +493,11 @@ function _renderCustomWorkLayout(images, layoutData) {
       captionEl.className = `work-item-caption align-${align}`;
       captionEl.textContent = item.caption;
       el.appendChild(captionEl);
+      if (order < 3) {
+        captionEl.classList.add('caption-revealed');
+      } else {
+        captionObserver.observe(captionEl);
+      }
     }
 
     gallery.appendChild(el);
