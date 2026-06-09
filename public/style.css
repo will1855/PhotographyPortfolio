@@ -1023,7 +1023,15 @@ header.ui-on-light nav a.active {
   color: var(--muted);
   line-height: 1.5;
   white-space: pre-wrap;
-  transition: color 0.3s ease;
+  opacity: 0;
+  transition: opacity 3600ms cubic-bezier(0.16, 1, 0.3, 1), 
+              color 0.3s ease;
+  transition-delay: 1500ms, 0s;
+}
+
+.gallery.work-editorial .work-item img.loaded ~ .work-item-caption,
+.gallery.work-editorial--custom .work-item img.loaded ~ .work-item-caption {
+  opacity: 1;
 }
 
 .gallery.work-editorial .work-item:hover .work-item-caption,
