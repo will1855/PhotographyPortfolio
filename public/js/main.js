@@ -872,7 +872,7 @@ async function handleRoute(url) {
     if (document.startViewTransition) {
       const transition = document.startViewTransition(performUpdate);
       window.activeViewTransition = transition.finished;
-      transition.finished.finally(() => {
+      transition.finished.catch(() => {}).finally(() => {
         if (window.activeViewTransition === transition.finished) {
           window.activeViewTransition = null;
         }
@@ -923,7 +923,7 @@ async function handleRoute(url) {
     if (document.startViewTransition) {
       const transition = document.startViewTransition(() => performUpdate());
       window.activeViewTransition = transition.finished;
-      transition.finished.finally(() => {
+      transition.finished.catch(() => {}).finally(() => {
         if (window.activeViewTransition === transition.finished) {
           window.activeViewTransition = null;
         }
