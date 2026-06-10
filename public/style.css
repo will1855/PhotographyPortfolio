@@ -917,6 +917,11 @@ footer {
 
 /* ── Responsive ────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  .hero {
+    min-height: auto !important;
+    height: 100svh !important;
+  }
+
   header {
     padding: 14px 16px;
   }
