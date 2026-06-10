@@ -1133,8 +1133,8 @@ header.ui-on-light nav a.active {
   transition-delay: 1500ms, 0s;
 }
 
-.gallery.work-editorial .work-item img.loaded ~ .work-item-caption.caption-revealed,
-.gallery.work-editorial--custom .work-item img.loaded ~ .work-item-caption.caption-revealed {
+.gallery.work-editorial .work-item img.loaded~.work-item-caption.caption-revealed,
+.gallery.work-editorial--custom .work-item img.loaded~.work-item-caption.caption-revealed {
   opacity: 1;
 }
 
@@ -1238,17 +1238,16 @@ header.ui-on-light nav a.active {
     position: relative !important;
     display: flex !important;
     flex-direction: column !important;
-    /* Scale width up for readability on mobile (default 1.25x scaling) */
-    width: clamp(65%, calc(var(--item-w) * 1.25), 94%) !important;
-    /* Scale margin offset down to ensure no overflow */
-    margin-left: calc(var(--item-ml) * 0.45) !important;
-    /* Scale down vertical gap (min 150px, max 450px) */
-    margin-bottom: clamp(150px, calc(var(--item-mb) * 0.6), 450px) !important;
+    align-items: center !important;
+    width: clamp(80%, calc(var(--item-w) * 1.3), 90%) !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    margin-bottom: clamp(100px, calc(var(--item-mb) * 0.4), 300px) !important;
   }
 
   .gallery.work-editorial .work-item.pos-above,
   .gallery.work-editorial--custom .work-item.pos-above {
-    flex-direction: column-reverse !important;
+    flex-direction: column !important;
   }
 
   .gallery.work-editorial .work-item.pos-left .work-item-caption,
@@ -1258,6 +1257,12 @@ header.ui-on-light nav a.active {
     position: static !important;
     transform: none !important;
     max-width: none !important;
+    margin-top: 10px !important;
+  }
+
+  .gallery.work-editorial .work-item.pos-above .work-item-caption,
+  .gallery.work-editorial--custom .work-item.pos-above .work-item-caption {
+    margin-bottom: 0 !important;
     margin-top: 10px !important;
   }
 
@@ -1272,6 +1277,8 @@ header.ui-on-light nav a.active {
   .work-item-caption {
     font-size: 0.72rem !important;
     margin-top: 10px !important;
+    text-align: center !important;
+    width: 100% !important;
   }
 
   .work-item.reveal-on-scroll {
@@ -1325,6 +1332,11 @@ nav {
 /* Active state triggered on My Work pages */
 body.cinematic-bg-active .cinematic-bg {
   opacity: 1;
+  background: #050403;
+}
+
+body.cinematic-bg-active .cinematic-glow {
+  display: none !important;
 }
 
 /* ── My Work — Warm Charcoal Atmosphere ──
@@ -1335,18 +1347,27 @@ body.cinematic-bg-active .cinematic-bg {
    • Faint amber glow off-centre for warmth without colour cast
    ──────────────────────────────────────── */
 body.cinematic-bg-active {
-  --bg: #100d0a;
-  /* warm charcoal — near-black with amber undertone */
-  --bg-warm-glow-opacity: 0.09;
-  /* subtle amber warmth, not orange */
-  --bg-grain-opacity: 0.055;
-  /* visible but not distracting */
-  --bg-vignette-opacity: 0.60;
-  /* deep soft edges pull eye to centre */
+  --bg: #050403;
+  /* matte near-black base */
+  --bg-warm-glow-opacity: 0;
+  --bg-grain-opacity: 0.04;
+  /* visible but subtle grain overlay */
+  --bg-vignette-opacity: 0.45;
+  /* soft edges pull eye to center */
 }
 
 body.cinematic-bg-active main {
   background: transparent !important;
+}
+
+@media (max-width: 768px) {
+  body.cinematic-bg-active .cinematic-bg {
+    background: #050403;
+  }
+
+  body.cinematic-bg-active {
+    --bg-grain-opacity: 0.03;
+  }
 }
 
 /* Soft blurred radial light layers */
@@ -1438,5 +1459,58 @@ body.cinematic-bg-active main {
   .cinematic-glow--cool {
     animation: none !important;
     transform: none !important;
+  }
+}
+
+
+
+/* ============================================================
+   MY WORK — FINAL CINEMATIC BACKDROP
+   Clean dark green/charcoal background with subtle image-led warmth.
+   ============================================================ */
+
+body.cinematic-bg-active {
+  --bg: #050604;
+  --text: #f3f3f0;
+  --muted: rgba(243, 243, 240, 0.72);
+}
+
+body.cinematic-bg-active main {
+  background: transparent !important;
+}
+
+body.cinematic-bg-active .cinematic-bg {
+  opacity: 1 !important;
+  background: #050403 !important;
+}
+
+/* Remove old obvious glow layers */
+body.cinematic-bg-active .cinematic-glow,
+body.cinematic-bg-active .cinematic-glow--warm,
+body.cinematic-bg-active .cinematic-glow--cool {
+  display: none !important;
+}
+
+/* Grain: almost none. Keep texture classy, not noisy. */
+body.cinematic-bg-active .cinematic-grain {
+  opacity: 0.015 !important;
+  mix-blend-mode: overlay;
+}
+
+/* Keep vignette very soft */
+body.cinematic-bg-active .cinematic-vignette {
+  background:
+    radial-gradient(ellipse 85% 85% at 50% 50%,
+      transparent 55%,
+      rgba(0, 0, 0, 0.18) 100%) !important;
+}
+
+@media (max-width: 768px) {
+  body.cinematic-bg-active .cinematic-bg {
+    background: #050403 !important;
+  }
+
+  body.cinematic-bg-active .cinematic-grain {
+    opacity: 0.01 !important;
   }
 }

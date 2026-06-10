@@ -1436,8 +1436,16 @@ textarea { min-height: 100px; }
   flex: 1;
   overflow-y: auto;
   position: relative;
-  background: #050505;
+  background: #050403;
   z-index: 1;
+  --bg-grain-opacity: 0.04;
+  --bg-vignette-opacity: 0.45;
+}
+
+
+
+.work-preview-panel .cinematic-glow {
+  display: none !important;
 }
 
 .work-preview-stage {

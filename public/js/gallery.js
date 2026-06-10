@@ -414,11 +414,7 @@ function _renderDefaultWorkLayout(images) {
       captionEl.className = 'work-item-caption';
       captionEl.textContent = imgData.title;
       item.appendChild(captionEl);
-      if (index < 3) {
-        captionEl.classList.add('caption-revealed');
-      } else {
-        captionObserver.observe(captionEl);
-      }
+      captionObserver.observe(captionEl);
     }
 
     gallery.appendChild(item);
@@ -493,11 +489,7 @@ function _renderCustomWorkLayout(images, layoutData) {
       captionEl.className = `work-item-caption align-${align}`;
       captionEl.textContent = item.caption;
       el.appendChild(captionEl);
-      if (order < 3) {
-        captionEl.classList.add('caption-revealed');
-      } else {
-        captionObserver.observe(captionEl);
-      }
+      captionObserver.observe(captionEl);
     }
 
     gallery.appendChild(el);
