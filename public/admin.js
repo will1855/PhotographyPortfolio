@@ -26,6 +26,7 @@ const fileInput      = document.getElementById('file-input');
 const uploadProgress = document.getElementById('upload-progress');
 const uploadProgressText = document.getElementById('upload-progress-text');
 const saveOrderBtn   = document.getElementById('save-order-btn');
+const saveImagesBtn  = document.getElementById('save-images-btn');
 const toastContainer = document.getElementById('toast-container');
 
 // ─── Toast ─────────────────────────────────────────────────────────────────────
@@ -136,10 +137,6 @@ async function loadDashboard() {
     }
 
     buildImageTabs();
-    if (sections.length > 0) {
-      activeSection = sections[0].slug;
-      loadSectionImages(activeSection);
-    }
   } catch (err) {
     toast('Failed to load dashboard', 'error');
     console.error(err);
@@ -147,15 +144,29 @@ async function loadDashboard() {
 }
 
 // ─── Image tabs ─────────────────────────────────────────────────────────────────
+// Only show the archive section tab in the Images panel (My Work is managed via Work panel)
+function isArchiveSection(s) {
+  return (s.nav_label || s.label || '').toLowerCase().trim() === 'archive';
+}
+
 function buildImageTabs() {
   imageTabs.innerHTML = '';
-  for (const s of sections) {
+  // Only show archive sections in the Images panel
+  const imageSections = sections.filter(s => isArchiveSection(s));
+  // Fallback: if no archive found, show all sections
+  const tabSections = imageSections.length > 0 ? imageSections : sections;
+  for (const s of tabSections) {
     const btn = document.createElement('button');
     btn.className = 'tab-btn' + (s.slug === activeSection ? ' active' : '');
     btn.textContent = s.nav_label || s.label;
     btn.dataset.slug = s.slug;
     btn.addEventListener('click', () => switchTab(s.slug));
     imageTabs.appendChild(btn);
+  }
+  // If activeSection isn't in our tab list, switch to first available tab
+  if (tabSections.length > 0 && !tabSections.find(s => s.slug === activeSection)) {
+    activeSection = tabSections[0].slug;
+    loadSectionImages(activeSection);
   }
 }
 
@@ -364,7 +375,7 @@ function layoutAdminGallery() {
 
 let _adminLayoutTimer = null;
 new ResizeObserver(() => {
-  if (activeSection !== 'archive' && activeSection !== 'studies') return;
+  if (activePanel !== 'images') return;
   clearTimeout(_adminLayoutTimer);
   _adminLayoutTimer = setTimeout(layoutAdminGallery, 120);
 }).observe(imageGrid);
@@ -448,33 +459,82 @@ function createImageCard(img, sectionConfig, index) {
   return card;
 }
 
-// ─── Save order ──────────────────────────────────────────────────────────────────
-saveOrderBtn.addEventListener('click', async () => {
-  const ids = [...imageGrid.querySelectorAll('.image-card')].map(c => c.dataset.id);
-  saveOrderBtn.disabled = true;
+// ─── Save order & metadata ────────────────────────────────────────────────────────
+async function saveAllImagesState(targetBtn) {
+  const cards = [...imageGrid.querySelectorAll('.image-card')];
+  if (cards.length === 0) return;
+
+  const btn = targetBtn || saveImagesBtn || saveOrderBtn;
+  if (btn) btn.disabled = true;
+
   try {
-    const res = await fetch('/api/admin/reorder', {
+    const ids = cards.map(c => c.dataset.id);
+
+    // 1. Save reordered position list
+    const reorderPromise = fetch('/api/admin/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({ section: activeSection, order: ids }),
     });
-    if (res.ok) {
-      toast('Order saved');
+
+    // 2. Save any metadata field values (title, year)
+    const section = imagesBySection[activeSection] || [];
+    const metaPromises = cards.map(async card => {
+      const id = card.dataset.id;
+      const titleInput = card.querySelector('.meta-title');
+      const yearInput  = card.querySelector('.meta-year');
+      if (!titleInput || !yearInput) return;
+      const title = titleInput.value;
+      const year  = yearInput.value;
+      const img   = section.find(i => i.id === id);
+
+      // Save if metadata was updated or differs from state
+      if (!img || img.title !== title || img.year !== year) {
+        const res = await fetch(`/api/admin/image/${id}/metadata`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ title, year }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (img) {
+            img.title = data.title;
+            img.year  = data.year;
+          }
+        }
+      }
+    });
+
+    const [reorderRes] = await Promise.all([reorderPromise, ...metaPromises]);
+
+    if (reorderRes.ok) {
+      toast('All image positions and metadata saved');
       orderChanged = false;
-      saveOrderBtn.style.display = 'none';
-      // Update local cache order
+      if (saveOrderBtn) saveOrderBtn.style.display = 'none';
+
+      // Refresh local cache order
       const currentImgs = imagesBySection[activeSection] || [];
       imagesBySection[activeSection] = ids.map(id => currentImgs.find(i => i.id === id)).filter(Boolean);
     } else {
-      toast('Failed to save order', 'error');
+      toast('Failed to save changes', 'error');
     }
-  } catch {
+  } catch (err) {
     toast('Connection error', 'error');
+    console.error(err);
   } finally {
-    saveOrderBtn.disabled = false;
+    if (btn) btn.disabled = false;
   }
-});
+}
+
+if (saveOrderBtn) {
+  saveOrderBtn.addEventListener('click', e => saveAllImagesState(e.currentTarget));
+}
+
+if (saveImagesBtn) {
+  saveImagesBtn.addEventListener('click', e => saveAllImagesState(e.currentTarget));
+}
 
 // ─── Delete image ────────────────────────────────────────────────────────────────
 imageGrid.addEventListener('click', async e => {
@@ -781,13 +841,40 @@ async function handleFiles(fileList) {
 }
 
 // ─── Hero panel ──────────────────────────────────────────────────────────────────
-function renderHeroPanel() {
+async function renderHeroPanel() {
   const container = document.getElementById('hero-sections-container');
+  container.innerHTML = '<p class="text-muted" style="padding:20px 0">Loading…</p>';
+
+  // Hero panel only shows non-archive sections (e.g., My Work)
+  const heroSections = sections.filter(s => !isArchiveSection(s));
+  const panelSections = heroSections.length > 0 ? heroSections : sections;
+
+  // Pre-load images for ALL sections (including archive) so all images are available in hero picker
+  const loadPromises = sections
+    .filter(s => !imagesBySection[s.slug])
+    .map(s =>
+      fetch(`/api/admin/images?section=${s.slug}`, { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => { imagesBySection[s.slug] = data; })
+        .catch(() => { imagesBySection[s.slug] = []; })
+    );
+  if (loadPromises.length > 0) await Promise.all(loadPromises);
+
+  // Combine images across all sections (e.g., Archive) into a unique list
+  const allImagesMap = new Map();
+  for (const s of sections) {
+    for (const img of (imagesBySection[s.slug] || [])) {
+      if (img && img.id) allImagesMap.set(img.id, img);
+    }
+  }
+  const allPortfolioImages = Array.from(allImagesMap.values());
+
   container.innerHTML = '';
 
-  for (const section of sections) {
+  for (const section of panelSections) {
     const sc = (siteConfig.sections || []).find(s => s.slug === section.slug) || {};
-    const images = imagesBySection[section.slug] || [];
+    // Use all available portfolio images for the hero picker
+    const images = allPortfolioImages.length > 0 ? allPortfolioImages : (imagesBySection[section.slug] || []);
 
     const group = document.createElement('div');
     group.className = 'hero-section-group';

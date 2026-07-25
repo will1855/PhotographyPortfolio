@@ -995,6 +995,41 @@ window.addEventListener('pageshow', (event) => {
   }
 });
 
+// ─── Tab visibility restore handler ────────────────────────────────────────────
+// When the user switches back to this tab, any View Transition that was in flight
+// when they left may be stuck (the browser pauses/cancels transitions in hidden tabs).
+// This clears the stale promise and force-shows any images that are loaded but not
+// yet marked visible — preventing the blank gallery bug.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') return;
+
+  // Clear any stuck View Transition promise so future fade-ins aren't blocked
+  if (window.activeViewTransition) {
+    window.activeViewTransition = null;
+  }
+
+  // Force-apply `loaded` class to any gallery images that have decoded but
+  // are still waiting on a stuck transition promise
+  const gallery = document.getElementById('gallery');
+  if (gallery) {
+    gallery.querySelectorAll('img').forEach(img => {
+      if (img.naturalWidth > 0 && !img.classList.contains('loaded')) {
+        img.classList.add('loaded');
+      }
+    });
+  }
+
+  // Also fix any hero slideshow images
+  const heroMedia = document.getElementById('hero-media');
+  if (heroMedia) {
+    heroMedia.querySelectorAll('img').forEach(img => {
+      if (img.naturalWidth > 0 && !img.classList.contains('loaded')) {
+        img.classList.add('loaded');
+      }
+    });
+  }
+});
+
 window.addEventListener('resize', () => {
   requestAnimationFrame(() => updateLiquidNavPill(true));
 });
