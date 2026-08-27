@@ -22,6 +22,7 @@
   --bg-grain-opacity: 0.04;
   --bg-vignette-opacity: 0.35;
 }
+
 html {
   scroll-behavior: auto;
   overflow-x: hidden;
@@ -40,6 +41,7 @@ body {
   transition: background-color 500ms ease;
   overflow-x: hidden;
 }
+
 body.preload * {
   transition: none !important;
 }
@@ -136,6 +138,44 @@ header h1 {
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.45);
   pointer-events: auto;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  line-height: 1;
+}
+
+header h1 a {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.site-logo {
+  height: 120px;
+  width: auto;
+  max-width: 800px;
+  margin-top: 80px;
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.45));
+  transition: opacity 200ms ease, filter 200ms ease, transform 200ms ease;
+}
+
+header h1 a:hover .site-logo {
+  opacity: 0.85;
+}
+
+.site-logo.dvd-bouncing {
+  user-select: none;
+  -webkit-user-drag: none;
+  touch-action: none;
+  will-change: left, top;
+  /* filter: drop-shadow(0 0 16px #ff3366) drop-shadow(0 0 35px #ff3366); */
+}
+
+.site-logo-placeholder {
+  pointer-events: none;
 }
 
 

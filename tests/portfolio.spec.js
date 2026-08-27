@@ -12,8 +12,8 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await expect(page.locator('nav#site-nav')).toBeVisible();
     await expect(page.locator('#app-content')).toBeVisible();
     
-    // 3. Verify main title renders correctly
-    await expect(page.locator('#site-title')).toContainText('Will Davies');
+    // 3. Verify main title logo renders correctly
+    await expect(page.locator('#site-title img')).toHaveAttribute('alt', 'Will Davies');
   });
 
   test('should handle smooth SPA routing to the About page and submit messages', async ({ page }) => {
@@ -104,6 +104,30 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     expect(heroFullLogs.length).toBeGreaterThan(0);
 
     console.log('Verified E2E Diagnostic Output:\n', logs.join('\n'));
+  });
+
+  test('should trigger DVD bouncing mode on logo click and return to navbar on tab switch or re-click', async ({ page }) => {
+    await page.goto('/');
+
+    const logoLink = page.locator('#site-title a');
+    const logoImg = page.locator('.site-logo');
+
+    // 1. Click site logo to start DVD bounce
+    await logoLink.click();
+    await expect(logoImg).toHaveClass(/dvd-bouncing/);
+
+    // 2. Click bouncing logo again to stop DVD bounce and return to nav
+    await logoImg.click({ force: true });
+    await expect(logoImg).not.toHaveClass(/dvd-bouncing/);
+
+    // 3. Click site logo to start DVD bounce again
+    await logoLink.click();
+    await expect(logoImg).toHaveClass(/dvd-bouncing/);
+
+    // 4. Click a navigation tab (e.g. About) and verify logo returns to nav bar
+    const aboutLink = page.locator('nav#site-nav a:has-text("About")');
+    await aboutLink.click();
+    await expect(logoImg).not.toHaveClass(/dvd-bouncing/);
   });
 
 });

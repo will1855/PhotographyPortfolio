@@ -7,6 +7,7 @@ import { renderLightboxSlides } from './lightbox.js';
 import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
 import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
+import { initDvdLogo, stopDvdBounce } from './dvdLogo.js';
 
 // Local variables in main scope
 let siteConfigCache = null;
@@ -54,6 +55,7 @@ export async function initPage() {
     setupLiquidNavDrag();
     setupLiquidHoverEffects();
     setupLiquidGlassReactivity();
+    initDvdLogo();
 
     updateLiquidNavPill(true);
   } catch (err) {
@@ -623,8 +625,17 @@ function applyConfig(config) {
     document.title = site_title;
   }
 
-  if (dom.siteTitle && dom.siteTitle.querySelector('a')) {
-    dom.siteTitle.querySelector('a').textContent = site_title;
+  const existingLogo = document.querySelector('.site-logo');
+  if (existingLogo) {
+    existingLogo.alt = site_title;
+  } else if (dom.siteTitle && dom.siteTitle.querySelector('a')) {
+    const titleLink = dom.siteTitle.querySelector('a');
+    const logoImg = titleLink.querySelector('img');
+    if (logoImg) {
+      logoImg.alt = site_title;
+    } else {
+      titleLink.textContent = site_title;
+    }
   }
 
   // Dynamic Navigation menu rendering
@@ -852,6 +863,7 @@ window.addEventListener('popstate', () => {
  * scrolls to the top, and re-boots the page.
  */
 async function handleRoute(url) {
+  stopDvdBounce(true);
   // Clean up slideshow before route change
   cleanupHeroSlideshow();
 
