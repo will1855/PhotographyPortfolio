@@ -257,6 +257,8 @@ function bindPointer() {
 
   nav.addEventListener('pointerdown', e => {
     if (!e.isPrimary) return;
+    const header = nav.closest('header');
+    if (header && (header.classList.contains('hidden-header') || getComputedStyle(header).visibility === 'hidden')) return;
     const a = e.target.closest('a.blob-link');
     if (!a) return;
     const idx = +a.dataset.navIndex;
@@ -280,6 +282,13 @@ function bindPointer() {
 
   nav.addEventListener('pointermove', e => {
     if (!dragging || e.pointerId !== dragPtrId) return;
+    const header = nav.closest('header');
+    if (header && (header.classList.contains('hidden-header') || getComputedStyle(header).visibility === 'hidden')) {
+      dragging = false; dragPtrId = -1;
+      const cx = ctr[active]?.x ?? 0;
+      tip.t = cx; anchor.t = cx; go();
+      return;
+    }
     const nr = nav.getBoundingClientRect();
     const minX = (ctr[0]?.x ?? 0) - 30;
     const maxX = (ctr[ctr.length - 1]?.x ?? 100) + 30;

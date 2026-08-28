@@ -93,7 +93,8 @@ header {
   pointer-events: none;
   transition:
     opacity 350ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
+    transform 350ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    visibility 350ms cubic-bezier(0.2, 0.8, 0.2, 1);
   view-transition-name: site-header;
 }
 
@@ -119,15 +120,19 @@ header {
   mix-blend-mode: normal;
 }
 
-.hidden-header {
+.hidden-header,
+.hidden-header * {
   opacity: 0;
   transform: translateY(-10px);
-  pointer-events: none;
+  pointer-events: none !important;
+  visibility: hidden;
 }
 
-body.lightbox-open header {
+body.lightbox-open header,
+body.lightbox-open header * {
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
+  visibility: hidden;
 }
 
 /* Site name — centred above nav dots */
