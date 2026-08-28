@@ -602,19 +602,46 @@ async function getSectionImagesData(slug) {
   try {
     const { data: section } = await supabase
       .from('portfolio_sections')
-      .select('id')
+      .select('id, slug')
       .eq('slug', slug)
       .eq('is_visible', true)
       .single();
 
-    if (!section) return [];
+    let images = [];
+    if (section) {
+      const { data: directImages } = await supabase
+        .from('portfolio_images')
+        .select('*')
+        .eq('section_id', section.id)
+        .eq('is_visible', true)
+        .order('sort_order', { ascending: true });
 
-    const { data: images } = await supabase
-      .from('portfolio_images')
-      .select('*')
-      .eq('section_id', section.id)
-      .eq('is_visible', true)
-      .order('sort_order', { ascending: true });
+      if (directImages && directImages.length > 0) {
+        images = directImages;
+      }
+    }
+
+    // Fallback: If no direct images exist for this section (e.g. editorial sections like 'mywork'), load archive section images
+    if (images.length === 0) {
+      const { data: allSections } = await supabase
+        .from('portfolio_sections')
+        .select('id, label, nav_label, slug')
+        .eq('is_visible', true);
+
+      const archiveSec = (allSections || []).find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+      if (archiveSec) {
+        const { data: archiveImages } = await supabase
+          .from('portfolio_images')
+          .select('*')
+          .eq('section_id', archiveSec.id)
+          .eq('is_visible', true)
+          .order('sort_order', { ascending: true });
+
+        if (archiveImages) {
+          images = archiveImages;
+        }
+      }
+    }
 
     return (images || []).map(formatImageRow);
   } catch (err) {

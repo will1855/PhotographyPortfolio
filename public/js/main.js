@@ -139,13 +139,17 @@ export async function initPage() {
         if (siteConfigCache?.initial_images && state.section === currentSection) {
           data = siteConfigCache.initial_images;
           delete siteConfigCache.initial_images; // Consume only once
-          state.sectionCache.set(state.section, data);
-        } else if (state.sectionCache.has(state.section)) {
+          if (Array.isArray(data) && data.length > 0) {
+            state.sectionCache.set(state.section, data);
+          }
+        } else if (state.sectionCache.has(state.section) && Array.isArray(state.sectionCache.get(state.section)) && state.sectionCache.get(state.section).length > 0) {
           data = state.sectionCache.get(state.section);
         } else {
           const imgRes = await fetch(`/api/images?section=${encodeURIComponent(imgSection)}`);
           data = await imgRes.json();
-          state.sectionCache.set(state.section, data);
+          if (Array.isArray(data) && data.length > 0) {
+            state.sectionCache.set(state.section, data);
+          }
         }
 
         if (Array.isArray(data) && data.length > 0) {
@@ -197,29 +201,44 @@ function setupNavPrefetch() {
     try {
       const url = new URL(a.href, window.location.origin);
       const s = url.searchParams.get('section');
-      if (s && !state.sectionCache.has(s)) {
-        fetch(`/api/images?section=${encodeURIComponent(s)}`)
+      if (s) {
+        const cached = state.sectionCache.get(s);
+        if (cached && Array.isArray(cached) && cached.length > 0) return;
+
+        let imgSection = s;
+        if (siteConfigCache?.sections) {
+          const sec = siteConfigCache.sections.find(sc => sc.slug === s);
+          const isEditorial = !sec || (sec.nav_label || sec.label || '').toLowerCase().trim() !== 'archive';
+          if (isEditorial) {
+            const archiveSec = siteConfigCache.sections.find(sc => (sc.nav_label || sc.label || '').toLowerCase().trim() === 'archive');
+            if (archiveSec) imgSection = archiveSec.slug;
+          }
+        }
+
+        fetch(`/api/images?section=${encodeURIComponent(imgSection)}`)
           .then(res => res.json())
           .then(data => {
-            state.sectionCache.set(s, data);
-            data.slice(0, 2).forEach(img => {
-              const link = document.createElement('link');
-              link.rel = 'preload';
-              link.as = 'image';
-              link.href = img.public_url_grid_thumb || img.public_url_thumb;
+            if (Array.isArray(data) && data.length > 0) {
+              state.sectionCache.set(s, data);
+              data.slice(0, 2).forEach(img => {
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'image';
+                link.href = img.public_url_grid_thumb || img.public_url_thumb;
 
-              if (img.public_url_grid_thumb && img.public_url_thumb) {
-                link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1600w`);
-                if (img.is_wide) {
-                  link.setAttribute('imagesizes', '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw');
-                } else {
-                  link.setAttribute('imagesizes', '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw');
+                if (img.public_url_grid_thumb && img.public_url_thumb) {
+                  link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1600w`);
+                  if (img.is_wide) {
+                    link.setAttribute('imagesizes', '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw');
+                  } else {
+                    link.setAttribute('imagesizes', '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw');
+                  }
                 }
-              }
 
-              link.setAttribute('fetchpriority', 'low');
-              document.head.appendChild(link);
-            });
+                link.setAttribute('fetchpriority', 'low');
+                document.head.appendChild(link);
+              });
+            }
           })
           .catch(() => { });
       }
@@ -518,6 +537,7 @@ async function handleRoute(url) {
   // Works for: Home→Section, Section→Section, Section→Home (no-section)
   if (isHome && hasGallery) {
     if (newSection) state.section = newSection;
+    else state.section = null;
     const performUpdate = async () => {
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);
