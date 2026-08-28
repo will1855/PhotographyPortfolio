@@ -20,7 +20,7 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await page.goto('/');
 
     // 1. Intercept SPA routing: click 'About' link
-    const aboutLink = page.locator('nav#site-nav a:has-text("About")');
+    const aboutLink = page.locator('nav#site-nav a[aria-label="About"]');
     await expect(aboutLink).toBeVisible();
     await aboutLink.click();
 
@@ -125,7 +125,7 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await expect(logoImg).toHaveClass(/dvd-bouncing/);
 
     // 4. Click a navigation tab (e.g. About) and verify logo returns to nav bar
-    const aboutLink = page.locator('nav#site-nav a:has-text("About")');
+    const aboutLink = page.locator('nav#site-nav a[aria-label="About"]');
     await aboutLink.click();
     await expect(logoImg).not.toHaveClass(/dvd-bouncing/);
   });

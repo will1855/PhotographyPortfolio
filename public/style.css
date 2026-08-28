@@ -75,16 +75,18 @@ main {
 
 
 /* ── Header ────────────────────────────────────────────────────────────────── */
-/* Fully invisible container — only the name (left) and nav pill (right) show */
+/* Centred column — logo on top, dot navigation directly beneath */
 header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  padding: 18px 28px;
+  padding: 16px 28px 8px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 2px;
   z-index: 20;
   background: transparent;
   border: none;
@@ -128,7 +130,7 @@ body.lightbox-open header {
   pointer-events: none;
 }
 
-/* Site name — top left */
+/* Site name — centred above nav dots */
 header h1 {
   font-size: 0.72rem;
   font-weight: 400;
@@ -140,6 +142,7 @@ header h1 {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
   margin: 0;
   line-height: 1;
 }
@@ -155,7 +158,7 @@ header h1 a {
   height: 120px;
   width: auto;
   max-width: 800px;
-  margin-top: 80px;
+  margin-top: 0;
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.45));
@@ -282,130 +285,94 @@ header h1 a:hover .site-logo {
 }
 
 
-/* ── Liquid Glass Nav Pill ─────────────────────────────────────────────────── */
+/* ── Blob Dot Navigation ───────────────────────────────────────────────────── */
 
 nav {
-  --nav-pill-x: 3px;
-  --nav-pill-w: 0px;
-
   position: relative;
   display: flex;
   align-items: center;
-  gap: 0;
-  padding: 3px;
-  border-radius: 999px;
-  isolation: isolate;
-  flex-shrink: 0;
-  touch-action: pan-y;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px 8px;
   pointer-events: auto;
-
-  /* Track — nearly invisible, just a thin outline */
+  touch-action: pan-y;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-/* Sliding active-pill glass capsule */
-nav::before {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 0;
-  width: var(--nav-pill-w);
-  height: calc(100% - 4px);
-  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
-  transform-origin: center center;
-  border-radius: 999px;
-  z-index: 0;
-  pointer-events: none;
-
-  background: rgba(255, 255, 255, 0.06);
   border: none;
-  border-top: 1px solid rgba(255, 255, 255, 0.22);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(8px) saturate(140%) brightness(1.04);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
-
-  transition:
-    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
-    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
+  border-radius: 0;
+  isolation: auto;
+  margin-top: 0;
 }
 
-nav:hover::before {
-  background: rgba(255, 255, 255, 0.09);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(10px) saturate(150%) brightness(1.06);
-}
-
-/* Cursor-following specular glare — painted ONLY over the pill, not the track */
+nav::before,
 nav::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: 0;
-  width: var(--nav-pill-w);
-  height: calc(100% - 4px);
-  transform: translate3d(var(--nav-pill-x), 0, 0) scale(var(--nav-pill-scale-x, 1), var(--nav-pill-scale-y, 1));
-  transform-origin: center center;
-  border-radius: 999px;
-  z-index: 2;
-  /* above the links so blend shows */
-  pointer-events: none;
-
-  background: radial-gradient(circle at var(--glare-x, 30%) var(--glare-y, 18%),
-      rgba(255, 255, 255, 0.22) 0%,
-      rgba(255, 255, 255, 0.06) 45%,
-      rgba(255, 255, 255, 0.00) 75%);
-  mix-blend-mode: overlay;
-
-  transition:
-    transform 400ms cubic-bezier(0.25, 1.4, 0.35, 1),
-    width 350ms cubic-bezier(0.25, 1.2, 0.35, 1);
+  content: none;
 }
 
-/* Suppress transitions during drag so pill follows the pointer instantly */
-nav.nav-dragging::before,
-nav.nav-dragging::after {
-  transition: none !important;
-}
-
-nav a {
-  position: relative;
-  z-index: 1;
-  display: inline-flex;
+.blob-link {
+  display: flex;
   align-items: center;
   justify-content: center;
-  min-height: 28px;
-  padding: 0 16px;
-  border-radius: 999px;
-
-  color: var(--muted);
-  text-decoration: none;
-  font-size: 0.82rem;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  line-height: 1;
-  white-space: nowrap;
-
-  /* No individual link glass — the pill ::before handles that */
+  width: 28px;
+  height: 36px;
+  position: relative;
+  z-index: 2;
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-
-  transition: color 180ms ease, text-shadow 180ms ease;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  color: transparent;
+  font-size: 0;
 }
 
-nav a:hover {
-  color: var(--text);
+.blob-link:focus {
+  outline: none;
 }
 
-nav a.active {
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+.blob-link:focus-visible {
+  outline: 2px solid rgba(239, 62, 35, 0.5);
+  outline-offset: 2px;
+  border-radius: 50%;
 }
 
+.blob-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 1;
+}
 
+.blob-dot,
+.blob-active {
+  will-change: d, cx, cy, r;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Touch / coarse-pointer: larger invisible hit targets */
+@media (pointer: coarse) {
+  .blob-link {
+    width: 44px;
+    height: 44px;
+  }
+}
 
 
 /* ── No-Hero Mode (My Work / Archive tabs) ─────────────────────────────────── */
@@ -963,43 +930,11 @@ footer {
   }
 
   header {
-    padding: 14px 16px;
+    padding: 12px 16px 6px;
   }
 
-  header h1 {
-    font-size: 0.68rem;
-  }
-
-  nav a {
-    font-size: 0.75rem;
-    min-height: 26px;
-    padding: 0 10px;
-  }
-
-  @media (max-width: 480px) {
-    header {
-      flex-direction: column !important;
-      gap: 10px !important;
-      padding: 12px 10px !important;
-      align-items: center !important;
-      justify-content: center !important;
-    }
-
-    header h1 {
-      font-size: 0.65rem !important;
-      text-align: center !important;
-    }
-
-    nav {
-      max-width: 100% !important;
-      justify-content: center !important;
-    }
-
-    nav a {
-      font-size: 0.68rem !important;
-      padding: 0 8px !important;
-      min-height: 24px !important;
-    }
+  .site-logo {
+    height: 90px;
   }
 
   .hero-overlay {
@@ -1045,31 +980,6 @@ header.ui-on-mid h1 {
     0 4px 24px rgba(0, 0, 0, 0.25);
 }
 
-header.ui-on-mid nav {
-  border-color: rgba(255, 255, 255, 0.18);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.25);
-}
-
-header.ui-on-mid nav::before {
-  background: rgba(0, 0, 0, 0.18);
-  border-top-color: rgba(255, 255, 255, 0.24);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(14px) saturate(140%) brightness(0.92);
-  box-shadow: 0 2px 18px rgba(0, 0, 0, 0.30);
-}
-
-header.ui-on-mid nav a {
-  color: rgba(255, 255, 255, 0.88);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.40);
-}
-
-header.ui-on-mid nav a.active {
-  color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.55);
-}
-
 /* ui-on-light: washed / near-white hero backgrounds */
 header.ui-on-light h1 {
   color: #ffffff;
@@ -1077,31 +987,6 @@ header.ui-on-light h1 {
     0 1px 2px rgba(0, 0, 0, 0.80),
     0 2px 10px rgba(0, 0, 0, 0.60),
     0 4px 28px rgba(0, 0, 0, 0.40);
-}
-
-header.ui-on-light nav {
-  border-color: rgba(255, 255, 255, 0.22);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.35);
-}
-
-header.ui-on-light nav::before {
-  background: rgba(0, 0, 0, 0.32);
-  border-top-color: rgba(255, 255, 255, 0.20);
-  backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.82);
-  -webkit-backdrop-filter: url(#liquid-lens-backdrop) blur(16px) saturate(120%) brightness(0.82);
-  box-shadow: 0 2px 24px rgba(0, 0, 0, 0.40);
-}
-
-header.ui-on-light nav a {
-  color: rgba(255, 255, 255, 0.92);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
-}
-
-header.ui-on-light nav a.active {
-  color: #ffffff;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.70);
 }
 
 

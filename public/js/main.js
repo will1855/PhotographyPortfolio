@@ -8,10 +8,13 @@ import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
 import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
 import { initDvdLogo, stopDvdBounce } from './dvdLogo.js';
+import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js';
 
 // Local variables in main scope
 let siteConfigCache = null;
 let _lastRoutedBase = window.location.pathname + window.location.search;
+let _activeNavIdx = 0;
+let _blobFirstInit = true;
 
 // ─── Preload flash prevention ──────────────────────────────────────────────────
 // Removing 'preload' class as soon as the script executes (deferred, DOM is ready)
@@ -52,12 +55,19 @@ export async function initPage() {
     }
     applyConfig(siteConfigCache);
     setupNavPrefetch();
-    setupLiquidNavDrag();
-    setupLiquidHoverEffects();
-    setupLiquidGlassReactivity();
     initDvdLogo();
 
-    updateLiquidNavPill(true);
+    // Blob navigation — init (idempotent) and set active dot
+    initBlobNav(async (link) => {
+      const url = new URL(link.href, window.location.origin);
+      const base = url.pathname + url.search;
+      if (base === _lastRoutedBase) return;
+      window.history.pushState({}, '', link.href);
+      _lastRoutedBase = base;
+      await handleRoute(link.href);
+    });
+    updateBlobNavActive(_activeNavIdx, _blobFirstInit);
+    _blobFirstInit = false;
   } catch (err) {
     console.warn('[config] Failed to load site config, using defaults', err);
     applyFallbackNav();
@@ -223,388 +233,7 @@ function setupNavPrefetch() {
  * Configures dynamic page metadata, site title, navigation active states,
  * kicker text, and boots the slideshow.
  */
-let navPointer = null;
-let suppressNextNavClick = false;
 
-function updateLiquidNavPill(noTransition = false) {
-  const nav = dom.siteNav || document.querySelector('nav');
-  const activeLink = nav?.querySelector('a.active');
-
-  if (!nav || !activeLink) return;
-
-  if (noTransition) {
-    nav.classList.add('nav-dragging');
-  }
-
-  nav.style.setProperty('--nav-pill-x', `${activeLink.offsetLeft}px`);
-  nav.style.setProperty('--nav-pill-w', `${activeLink.offsetWidth}px`);
-  nav.style.setProperty('--nav-pill-scale-x', '1');
-  nav.style.setProperty('--nav-pill-scale-y', '1');
-  nav.style.setProperty('--nav-pill-glare-x', '30%');
-
-  if (noTransition) {
-    // Force a style/layout reflow
-    nav.offsetHeight;
-    nav.classList.remove('nav-dragging');
-  }
-}
-
-function setActiveNavLink(link) {
-  const nav = dom.siteNav || document.querySelector('nav');
-  if (!nav || !link) return;
-
-  nav.querySelectorAll('a').forEach(a => {
-    a.classList.toggle('active', a === link);
-  });
-
-  updateLiquidNavPill();
-}
-
-function getClosestNavLink(nav, clientX) {
-  const links = Array.from(nav.querySelectorAll('a'));
-  let closest = null;
-  let closestDistance = Infinity;
-
-  for (const link of links) {
-    const rect = link.getBoundingClientRect();
-    const centre = rect.left + rect.width / 2;
-    const distance = Math.abs(clientX - centre);
-
-    if (distance < closestDistance) {
-      closest = link;
-      closestDistance = distance;
-    }
-  }
-
-  return closest;
-}
-
-async function goToNavLink(link) {
-  if (!link) return;
-
-  const currentBase = window.location.pathname + window.location.search;
-  const targetBase = link.pathname + link.search;
-
-  setActiveNavLink(link);
-
-  if (targetBase === currentBase) {
-    requestAnimationFrame(() => updateLiquidNavPill(false));
-    return;
-  }
-
-  window.history.pushState({}, '', link.href);
-  _lastRoutedBase = targetBase;
-
-  await handleRoute(link.href);
-
-  requestAnimationFrame(() => updateLiquidNavPill(false));
-}
-
-function setupLiquidNavDrag() {
-  const nav = dom.siteNav || document.querySelector('nav');
-  if (!nav || nav.dataset.liquidDragSetup === 'true') return;
-
-  nav.dataset.liquidDragSetup = 'true';
-
-  nav.addEventListener('pointerdown', (e) => {
-    if (!e.isPrimary) return;
-
-    const targetLink = e.target.closest('a');
-    if (!targetLink) return;
-
-    const activeLink = nav.querySelector('a.active') || targetLink;
-
-    navPointer = {
-      id: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      startLink: activeLink,
-      targetLink: targetLink,
-      didDrag: false,
-    };
-
-    nav.setPointerCapture?.(e.pointerId);
-  });
-
-  nav.addEventListener('pointermove', (e) => {
-    if (!navPointer || navPointer.id !== e.pointerId) return;
-
-    const rawDx = e.clientX - navPointer.startX;
-    const rawDy = e.clientY - navPointer.startY;
-
-    if (!navPointer.didDrag && Math.abs(rawDx) < 5 && Math.abs(rawDy) < 5) return;
-
-    navPointer.didDrag = true;
-    nav.classList.add('nav-dragging');
-
-    // Tactile logarithmic/rubber-band damping on pointer displacement
-    const dx = Math.sign(rawDx) * Math.log1p(Math.abs(rawDx) * 0.02) * 25;
-
-    const navRect = nav.getBoundingClientRect();
-    const startLink = navPointer.startLink;
-    const startX = startLink.offsetLeft;
-    const startW = startLink.offsetWidth;
-
-    // Distort pill width and position based on direction of drag
-    let L, R;
-    if (dx >= 0) {
-      L = startX + dx * 0.15;
-      R = startX + startW + dx * 0.85;
-    } else {
-      L = startX + dx * 0.85;
-      R = startX + startW + dx * 0.15;
-    }
-
-    // Constraints to maintain layout bounds
-    L = Math.max(3, L);
-    R = Math.min(nav.offsetWidth - 3, R);
-    const W = Math.max(startW * 0.9, R - L);
-    const X = L;
-
-    // Calculate visual stretch amount, clamped subtly to scaleX [0.96, 1.08] and scaleY [0.96, 1.02]
-    const stretch = (W - startW) / startW;
-    let scaleX, scaleY;
-    if (stretch >= 0) {
-      scaleX = 1 + Math.min(stretch, 0.08);
-      scaleY = 1 - Math.min(stretch * 0.5, 0.04);
-    } else {
-      scaleX = 1 + Math.max(stretch, -0.04);
-      scaleY = 1 - Math.max(stretch * 0.5, -0.02);
-    }
-    const clampedScaleX = Math.max(0.96, Math.min(1.08, scaleX));
-    const clampedScaleY = Math.max(0.96, Math.min(1.02, scaleY));
-
-    // Calculate dynamic glare shift (radial gradient light source reflection movement)
-    const glareX = Math.max(10, Math.min(50, 30 + (dx / startW) * 20));
-
-    nav.style.setProperty('--nav-pill-x', `${X}px`);
-    nav.style.setProperty('--nav-pill-w', `${W}px`);
-    nav.style.setProperty('--nav-pill-scale-x', `${clampedScaleX}`);
-    nav.style.setProperty('--nav-pill-scale-y', `${clampedScaleY}`);
-    nav.style.setProperty('--nav-pill-glare-x', `${glareX}%`);
-  });
-
-  nav.addEventListener('pointerup', async (e) => {
-    if (!navPointer || navPointer.id !== e.pointerId) return;
-
-    const wasDrag = navPointer.didDrag;
-    const clickedLink = navPointer.targetLink;
-
-    navPointer = null;
-    nav.classList.remove('nav-dragging');
-    nav.releasePointerCapture?.(e.pointerId);
-
-    if (wasDrag) {
-      const chosenLink = getClosestNavLink(nav, e.clientX);
-      
-      // Update browser history and route to section
-      suppressNextNavClick = true;
-      await goToNavLink(chosenLink);
-      
-      setTimeout(() => {
-        suppressNextNavClick = false;
-      }, 50);
-    } else {
-      if (clickedLink) {
-        suppressNextNavClick = true;
-        await goToNavLink(clickedLink);
-        
-        setTimeout(() => {
-          suppressNextNavClick = false;
-        }, 50);
-      } else {
-        requestAnimationFrame(() => updateLiquidNavPill(false));
-      }
-    }
-  });
-
-  nav.addEventListener('pointercancel', () => {
-    navPointer = null;
-    suppressNextNavClick = false;
-    nav.classList.remove('nav-dragging');
-    requestAnimationFrame(() => updateLiquidNavPill(false));
-  });
-
-  nav.addEventListener('click', (e) => {
-    const link = e.target.closest('a');
-    
-    e.preventDefault();
-    e.stopImmediatePropagation();
-
-    if (suppressNextNavClick) {
-      suppressNextNavClick = false;
-      return;
-    }
-
-    if (link) {
-      goToNavLink(link);
-    }
-  }, true);
-}
-
-function setupLiquidHoverEffects() {
-  const elements = [];
-  const nav = dom.siteNav || document.querySelector('nav');
-  if (nav) elements.push(nav);
-  
-  elements.forEach(el => {
-    if (el.dataset.liquidHoverSetup === 'true') return;
-    el.dataset.liquidHoverSetup = 'true';
-    
-    el.addEventListener('pointermove', (e) => {
-      if (el.classList.contains('nav-dragging')) return;
-      
-      if (el._resetRaf) {
-        cancelAnimationFrame(el._resetRaf);
-        el._resetRaf = null;
-      }
-      
-      const rect = el.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      
-      const normX = (x / rect.width) * 2 - 1;
-      const normY = (y / rect.height) * 2 - 1;
-      
-      el.style.setProperty('--tilt-x', normX.toFixed(3));
-      el.style.setProperty('--tilt-y', normY.toFixed(3));
-      
-      const glareX = (x / rect.width) * 100;
-      const glareY = (y / rect.height) * 100;
-      el.style.setProperty('--glare-x', `${glareX.toFixed(1)}%`);
-      el.style.setProperty('--glare-y', `${glareY.toFixed(1)}%`);
-    });
-    
-    el.addEventListener('pointerleave', () => {
-      if (el._resetRaf) {
-        cancelAnimationFrame(el._resetRaf);
-      }
-      
-      let currentX = parseFloat(el.style.getPropertyValue('--tilt-x')) || 0;
-      let currentY = parseFloat(el.style.getPropertyValue('--tilt-y')) || 0;
-      
-      const duration = 250;
-      const start = performance.now();
-      
-      function reset() {
-        const elapsed = performance.now() - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const ease = progress * (2 - progress);
-        
-        const nextX = currentX * (1 - ease);
-        const nextY = currentY * (1 - ease);
-        
-        el.style.setProperty('--tilt-x', nextX.toFixed(3));
-        el.style.setProperty('--tilt-y', nextY.toFixed(3));
-        
-        const currentGlareX = parseFloat(el.style.getPropertyValue('--glare-x')) || 50;
-        const currentGlareY = parseFloat(el.style.getPropertyValue('--glare-y')) || 20;
-        const nextGlareX = currentGlareX + (50 - currentGlareX) * ease;
-        const nextGlareY = currentGlareY + (20 - currentGlareY) * ease;
-        
-        el.style.setProperty('--glare-x', `${nextGlareX.toFixed(1)}%`);
-        el.style.setProperty('--glare-y', `${nextGlareY.toFixed(1)}%`);
-        
-        if (progress < 1) {
-          el._resetRaf = requestAnimationFrame(reset);
-        } else {
-          el.style.removeProperty('--tilt-x');
-          el.style.removeProperty('--tilt-y');
-          el.style.removeProperty('--glare-x');
-          el.style.removeProperty('--glare-y');
-          el._resetRaf = null;
-        }
-      }
-      el._resetRaf = requestAnimationFrame(reset);
-    });
-  });
-}
-
-/**
- * Drives the SVG liquid-lens filter reactively from mouse position.
- * The feTurbulence baseFrequency shifts as the cursor moves across the
- * glass element, so the background image visibly warps and refracts
- * in real time — not static blur.
- */
-function setupLiquidGlassReactivity() {
-  // Grab the live SVG filter elements so we can mutate their attributes each frame
-  const turbulence = document.querySelector('#liquid-lens-backdrop feTurbulence');
-  const displacement = document.querySelector('#liquid-lens-backdrop feDisplacementMap');
-  if (!turbulence || !displacement) return;
-
-  const nav = dom.siteNav || document.querySelector('nav');
-  const glassEls = nav ? [nav] : [];
-
-  // Smoothed internal state
-  let targetFreqX = 0.015;
-  let targetFreqY = 0.015;
-  let currentFreqX = 0.015;
-  let currentFreqY = 0.015;
-  let targetScale = 18;
-  let currentScale = 18;
-  let animRaf = null;
-  let isHovering = false;
-
-  // Base frequency range: rest vs hovered
-  const REST_FREQ = 0.015;
-  const HOVER_FREQ_X_RANGE = 0.018; // delta from rest when cursor is at edge
-  const HOVER_FREQ_Y_RANGE = 0.012;
-  const REST_SCALE = 18;
-  const HOVER_SCALE = 32;
-
-  function animateFilter() {
-    // Smooth towards target with exponential decay (feels springy/liquid)
-    const lerpFactor = 0.1;
-    currentFreqX += (targetFreqX - currentFreqX) * lerpFactor;
-    currentFreqY += (targetFreqY - currentFreqY) * lerpFactor;
-    currentScale += (targetScale - currentScale) * lerpFactor;
-
-    turbulence.setAttribute('baseFrequency', `${currentFreqX.toFixed(5)} ${currentFreqY.toFixed(5)}`);
-    displacement.setAttribute('scale', currentScale.toFixed(2));
-
-    // Keep running while hovering or while values are still settling
-    const settled =
-      Math.abs(currentFreqX - targetFreqX) < 0.0001 &&
-      Math.abs(currentFreqY - targetFreqY) < 0.0001 &&
-      Math.abs(currentScale - targetScale) < 0.1;
-
-    if (!settled || isHovering) {
-      animRaf = requestAnimationFrame(animateFilter);
-    } else {
-      animRaf = null;
-    }
-  }
-
-  function startAnim() {
-    if (!animRaf) animRaf = requestAnimationFrame(animateFilter);
-  }
-
-  glassEls.forEach(el => {
-    el.addEventListener('pointermove', (e) => {
-      isHovering = true;
-      const rect = el.getBoundingClientRect();
-      // Normalised cursor position: -1 (left/top) to +1 (right/bottom)
-      const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      const ny = ((e.clientY - rect.top) / rect.height) * 2 - 1;
-
-      // Map cursor position to turbulence frequency shift
-      targetFreqX = REST_FREQ + nx * HOVER_FREQ_X_RANGE * 0.5;
-      targetFreqY = REST_FREQ + Math.abs(ny) * HOVER_FREQ_Y_RANGE;
-      targetScale = REST_SCALE + (1 - Math.abs(nx) * 0.5) * (HOVER_SCALE - REST_SCALE);
-
-      startAnim();
-    }, { passive: true });
-
-    el.addEventListener('pointerleave', () => {
-      isHovering = false;
-      // Return to rest state
-      targetFreqX = REST_FREQ;
-      targetFreqY = REST_FREQ;
-      targetScale = REST_SCALE;
-      startAnim();
-    }, { passive: true });
-  });
-}
 
 function applyConfig(config) {
   const site_title = config.site_title || 'Will Davies';
@@ -638,49 +267,43 @@ function applyConfig(config) {
     }
   }
 
-  // Dynamic Navigation menu rendering
-  // Force rebuild if: empty, not yet marked built, OR missing the Home link (stale nav from old code)
-  const hasHomeLink = !!dom.siteNav?.querySelector('a[href="/"]');
+  // Resolve section slugs for blob nav
+  const workSection = sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() !== 'archive') || sections[0];
+  const archiveSection = sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
+
+  // Dynamic Navigation menu rendering — blob-link elements (no visible text)
+  const hasHomeLink = !!dom.siteNav?.querySelector('a[data-nav-index="0"]');
   if (dom.siteNav && (dom.siteNav.children.length === 0 || dom.siteNav.dataset.built !== 'true' || !hasHomeLink)) {
     dom.siteNav.innerHTML = '';
+    dom.siteNav.setAttribute('aria-label', 'Main navigation');
 
-    // ── Home link (first) ──
-    const homeLink = document.createElement('a');
-    homeLink.href = '/';
-    homeLink.textContent = 'Home';
-    if (isHomePage) homeLink.classList.add('active');
-    dom.siteNav.appendChild(homeLink);
+    const navItems = [
+      { label: 'Home',    href: '/' },
+      { label: 'My Work', href: workSection  ? `/?section=${encodeURIComponent(workSection.slug)}`  : '/?section=work' },
+      { label: 'Archive', href: archiveSection ? `/?section=${encodeURIComponent(archiveSection.slug)}` : '/?section=archive' },
+      { label: 'About',   href: '/about' },
+    ];
 
-    // ── Section links ──
-    for (const s of sections) {
+    navItems.forEach((item, i) => {
       const a = document.createElement('a');
-      a.href = `/?section=${encodeURIComponent(s.slug)}`;
-      a.textContent = s.nav_label || s.label;
-      if (!isAboutPage && !isHomePage && s.slug === state.section) a.classList.add('active');
+      a.href = item.href;
+      a.setAttribute('aria-label', item.label);
+      a.setAttribute('data-nav-index', String(i));
+      a.className = 'blob-link';
+      a.innerHTML = `<span class="sr-only">${item.label}</span>`;
       dom.siteNav.appendChild(a);
-    }
-
-    // ── About link (last) ──
-    const aboutLink = document.createElement('a');
-    aboutLink.href = '/about';
-    aboutLink.textContent = config.about_title || 'About';
-    if (isAboutPage) aboutLink.classList.add('active');
-    dom.siteNav.appendChild(aboutLink);
-    dom.siteNav.dataset.built = 'true';
-  } else if (dom.siteNav) {
-    const allLinks = dom.siteNav.querySelectorAll('a');
-    allLinks.forEach(a => {
-      const url = new URL(a.href, window.location.origin);
-      if (url.pathname === '/about') {
-        a.classList.toggle('active', isAboutPage);
-      } else if (!url.searchParams.get('section') && url.pathname === '/') {
-        // Home link — active only when on the bare home page
-        a.classList.toggle('active', isHomePage);
-      } else {
-        const s = url.searchParams.get('section');
-        a.classList.toggle('active', !isAboutPage && !isHomePage && s === state.section);
-      }
     });
+
+    dom.siteNav.dataset.built = 'true';
+  }
+
+  // Determine active nav index
+  if (isAboutPage) {
+    _activeNavIdx = 3;
+  } else if (isHomePage) {
+    _activeNavIdx = 0;
+  } else {
+    _activeNavIdx = (workSection && state.section === workSection.slug) ? 1 : 2;
   }
 
   // Hero slideshow — only boot when we're on the Home tab
@@ -707,13 +330,32 @@ function applyFallbackNav() {
   const isHomePage = !isAboutPage && !urlSection &&
     (window.location.pathname === '/' || window.location.pathname === '/index.html');
   if (dom.siteNav) {
-    dom.siteNav.innerHTML = `
-      <a href="/"${isHomePage ? ' class="active"' : ''}>Home</a>
-      <a href="/?section=archive"${!isAboutPage && !isHomePage && state.section === 'archive' ? ' class="active"' : ''}>Archive</a>
-      <a href="/?section=studies"${!isAboutPage && !isHomePage && state.section === 'studies' ? ' class="active"' : ''}>Studies</a>
-      <a href="/about"${isAboutPage ? ' class="active"' : ''}>About</a>
-    `;
+    dom.siteNav.innerHTML = '';
+    dom.siteNav.setAttribute('aria-label', 'Main navigation');
+
+    const items = [
+      { label: 'Home',    href: '/' },
+      { label: 'My Work', href: '/?section=studies' },
+      { label: 'Archive', href: '/?section=archive' },
+      { label: 'About',   href: '/about' },
+    ];
+
+    items.forEach((item, i) => {
+      const a = document.createElement('a');
+      a.href = item.href;
+      a.setAttribute('aria-label', item.label);
+      a.setAttribute('data-nav-index', String(i));
+      a.className = 'blob-link';
+      a.innerHTML = `<span class="sr-only">${item.label}</span>`;
+      dom.siteNav.appendChild(a);
+    });
   }
+
+  // Determine active index
+  if (isAboutPage) _activeNavIdx = 3;
+  else if (isHomePage) _activeNavIdx = 0;
+  else if (state.section === 'studies') _activeNavIdx = 1;
+  else _activeNavIdx = 2;
 }
 
 /**
@@ -1043,11 +685,11 @@ document.addEventListener('visibilitychange', () => {
 });
 
 window.addEventListener('resize', () => {
-  requestAnimationFrame(() => updateLiquidNavPill(true));
+  requestAnimationFrame(() => refreshBlobPositions());
 });
 
 window.addEventListener('load', () => {
-  requestAnimationFrame(() => updateLiquidNavPill(true));
+  requestAnimationFrame(() => refreshBlobPositions());
 });
 
 // Cinematic background mouse reactivity (subtle parallax drift) - DISABLED
