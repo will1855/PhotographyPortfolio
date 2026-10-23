@@ -1,11 +1,11 @@
 'use strict';
 
-const CACHE_NAME = 'willdaviesphoto-cache-v25';
+const CACHE_NAME = 'willdaviesphoto-cache-v26';
 const STATIC_ASSETS = [
   '/',
   '/about',
   '/style.css?v=22',
-  '/js/main.js?v=20',
+  '/js/main.js?v=21',
   '/favicon.png?v=3',
   '/apple-touch-icon.png?v=3',
   '/logo.png'
@@ -50,6 +50,27 @@ self.addEventListener('fetch', (e) => {
 
   // Bypass cache completely for API endpoints and Admin panel
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin') || url.pathname.startsWith('/login')) {
+    return;
+  }
+
+  // HTML must come from the current deployment. Only use a saved page when
+  // the network is unavailable; do not replay a previous route's stale shell.
+  if (url.origin === self.location.origin &&
+      (e.request.mode === 'navigate' || url.pathname === '/' || url.pathname === '/about')) {
+    e.respondWith((async () => {
+      try {
+        const response = await fetch(e.request, { cache: 'no-cache' });
+        if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(e.request, response.clone());
+        }
+        return response;
+      } catch (error) {
+        const saved = await caches.match(e.request);
+        if (saved) return saved;
+        throw error;
+      }
+    })());
     return;
   }
 

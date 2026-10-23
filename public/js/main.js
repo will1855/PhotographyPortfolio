@@ -658,7 +658,7 @@ if ('serviceWorker' in navigator) {
     });
   } else {
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js')
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
         .catch(err => console.warn('[ServiceWorker] Registration failed:', err));
     });
   }

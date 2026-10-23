@@ -201,4 +201,25 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     expect(await page.evaluate(() => window.splashFrames.length)).toBe(0);
   });
 
+  test('direct About loads and reloads keep the correct page and JSON APIs', async ({ page, request }) => {
+    const config = await request.get('/api/site-config');
+    expect(config.ok()).toBeTruthy();
+    expect(config.headers()['content-type']).toContain('application/json');
+    expect((await config.json()).sections).toEqual(expect.any(Array));
+    const missing = await request.get('/api/nonexistent-endpoint');
+    expect(missing.status()).toBe(404);
+    expect(missing.headers()['content-type']).toContain('application/json');
+    await page.goto('/about');
+    await expect(page.locator('#about-content')).toContainText('About');
+    await expect(page.getByRole('link', {name:'About',exact:true})).toHaveAttribute('aria-current','page');
+    await page.reload();
+    await expect(page.locator('#about-content')).toContainText('About');
+    await page.getByRole('link', {name:'My Work',exact:true}).click();
+    await expect(page.locator('#gallery img').first()).toBeVisible();
+    await page.reload();
+    await expect(page.locator('#gallery img').first()).toBeVisible();
+    await page.getByRole('link', {name:'About',exact:true}).click();
+    await expect(page.locator('#about-content')).toContainText('About');
+  });
+
 });

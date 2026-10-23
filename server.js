@@ -105,7 +105,7 @@ try {
 }
 
 // Serve static public files - MOVE TO TOP
-const STATIC_CACHE = IS_PROD ? { maxAge: '1y', immutable: true } : { maxAge: 0 };
+const STATIC_CACHE = { maxAge: 0 }; // Revalidate code; versioned image headers remain CDN-managed.
 app.use(express.static(path.join(__dirname, 'public'), { index: false, ...STATIC_CACHE }));
 // Legacy: serve local images/thumbs if they still exist (migration fallback)
 app.use('/images', express.static(path.join(__dirname, 'images'), STATIC_CACHE));
@@ -162,7 +162,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
     <link rel="preload" href="/style.css?v=22" as="style">
-    <link rel="modulepreload" href="/js/main.js?v=20">
+    <link rel="modulepreload" href="/js/main.js?v=21">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -1699,6 +1699,11 @@ app.delete('/api/admin/inquiry/:id', requireAdmin, async (req, res) => {
     console.error('[DELETE /api/admin/inquiry]', err.message);
     res.status(500).json({ error: 'Failed to delete inquiry' });
   }
+});
+
+// Unknown API paths must never masquerade as a successful HTML page.
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // =============================================================================
