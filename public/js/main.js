@@ -1,8 +1,8 @@
 'use strict';
 
 import { logAnalyticsEvent } from './analytics.js';
-import { renderGallery } from './gallery.js';
-import { renderWorkLayout } from './gallery.js';
+import { renderGallery } from './gallery.js?v=2';
+import { renderWorkLayout } from './gallery.js?v=2';
 import { renderLightboxSlides } from './lightbox.js';
 import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
@@ -50,10 +50,17 @@ export async function initPage() {
         siteConfigCache = window.INITIAL_DATA;
       } else {
         const configRes = await fetch('/api/site-config');
+        if (!configRes.ok) throw new Error('Site configuration unavailable');
         siteConfigCache = await configRes.json();
       }
     }
     applyConfig(siteConfigCache);
+  } catch (err) {
+    console.warn('[config] Failed to load site config, using defaults', err);
+    applyFallbackNav();
+  }
+  // Navigation must initialise even if the database/config request failed.
+  try {
     setupNavPrefetch();
     initLiquidLogo();
 
@@ -69,8 +76,7 @@ export async function initPage() {
     updateBlobNavActive(_activeNavIdx, _blobFirstInit);
     _blobFirstInit = false;
   } catch (err) {
-    console.warn('[config] Failed to load site config, using defaults', err);
-    applyFallbackNav();
+    console.warn('[navigation] Animation unavailable; keeping text links', err);
   }
 
   const isAbout = window.location.pathname.includes('/about');
@@ -86,7 +92,7 @@ export async function initPage() {
   document.body.classList.remove('cinematic-bg-active');
 
   if (isAbout) {
-    if (siteConfigCache) loadAbout(siteConfigCache);
+    loadAbout(siteConfigCache || {});
   } else if (isHome) {
     // ── Home tab: hero only — no gallery rendering ──
     // Clean up any gallery content left from a previous section visit
@@ -349,13 +355,13 @@ function applyFallbackNav() {
   const urlSection = new URLSearchParams(window.location.search).get('section');
   const isHomePage = !isAboutPage && !urlSection &&
     (window.location.pathname === '/' || window.location.pathname === '/index.html');
-  if (dom.siteNav) {
+  if (dom.siteNav && !dom.siteNav.querySelector('a[data-nav-index="0"]')) {
     dom.siteNav.innerHTML = '';
     dom.siteNav.setAttribute('aria-label', 'Main navigation');
 
     const items = [
       { label: 'Home',    href: '/' },
-      { label: 'My Work', href: '/?section=studies' },
+      { label: 'My Work', href: '/?section=mywork' },
       { label: 'Archive', href: '/?section=archive' },
       { label: 'About',   href: '/about' },
     ];
@@ -374,7 +380,7 @@ function applyFallbackNav() {
   // Determine active index
   if (isAboutPage) _activeNavIdx = 3;
   else if (isHomePage) _activeNavIdx = 0;
-  else if (state.section === 'studies') _activeNavIdx = 1;
+  else if (state.section === 'mywork') _activeNavIdx = 1;
   else _activeNavIdx = 2;
 }
 
@@ -390,7 +396,7 @@ function loadAbout(config) {
   document.title = `${config.about_title || 'About'} — ${title}`;
 
   let textCol = '';
-  textCol += `<h2 class="about-name reveal" style="animation-delay: 250ms;">${config.about_title || 'About'}</h2>`;
+  textCol += `<p class="about-eyebrow">${escapeHtml(config.about_title || 'About')}</p><h2 class="about-name reveal" style="animation-delay: 100ms;">${escapeHtml(title)}</h2>`;
 
   if (config.about_text) {
     textCol += `<p class="about-text reveal" style="animation-delay: 350ms;">${escapeHtml(config.about_text)}</p>`;
@@ -405,9 +411,8 @@ function loadAbout(config) {
     textCol += `<div class="about-links reveal" style="animation-delay: 450ms;">${links.join('')}</div>`;
   }
 
-  textCol += `
-    <form class="contact-form reveal" id="contact-form" style="animation-delay: 550ms; margin-top: 28px;">
-      <h3 style="font-size:1.2rem;margin-bottom:24px;font-weight:500;">Send a message</h3>
+  const formHtml = `
+    <form class="contact-form reveal" id="contact-form" style="animation-delay: 150ms;">
       <div class="field">
         <label for="name">Name</label>
         <input type="text" id="name" name="name" required placeholder="Your name">
@@ -416,26 +421,21 @@ function loadAbout(config) {
         <label for="email">Email</label>
         <input type="email" id="email" name="email" required placeholder="hello@example.com">
       </div>
-      <div class="field">
+      <div class="field field-message">
         <label for="message">Message</label>
         <textarea id="message" name="message" rows="3" required placeholder="How can I help?"></textarea>
       </div>
       <button type="submit" class="btn-submit" id="submit-btn">Send Message</button>
-      <div id="form-status"></div>
+      <div id="form-status" role="status" aria-live="polite"></div>
     </form>
   `;
 
-  let html = '';
-  if (config.about_profile_url) {
-    html += `<div class="about-header">
-      <img class="about-profile-img reveal" src="${config.about_profile_url}" alt="${title}" style="animation-delay: 150ms;">
-      <div class="about-text-col" style="flex: 1;">${textCol}</div>
-    </div>`;
-  } else {
-    html += textCol;
-  }
-
-  content.innerHTML = html;
+  const portrait = config.about_profile_url
+    ? '<img class="about-profile-img" src="'+escapeHtml(config.about_profile_url)+'" alt="'+escapeHtml(title)+'" decoding="async">' : '';
+  content.innerHTML = '<div class="about-layout'+(portrait?'':' about-layout--text-only')+'">'
+    +(portrait?'<div class="about-portrait">'+portrait+'</div>':'')
+    +'<div class="about-biography">'+textCol+'</div></div>'
+    +'<section class="about-contact"><div><h3>Get in touch</h3><p>Have something in mind? Send me a note.</p></div>'+formHtml+'</section>';
 
   // Contact form submission logic
   const form = document.getElementById('contact-form');

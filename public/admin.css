@@ -1617,3 +1617,9 @@ textarea { min-height: 100px; }
     transform: none !important;
   }
 }
+
+.work-preview-row--pair {display:grid;gap:16px;align-items:start}
+.work-preview-row .work-preview-item {min-width:0;width:100%;margin:0}
+.work-preview-caption {font-weight:900;letter-spacing:.14em;text-transform:uppercase;overflow-wrap:anywhere}
+.work-control-row--caption input[type="text"] {text-transform:none;letter-spacing:normal}
+.work-control-row select {background:var(--surface);color:var(--text);border:1px solid var(--border-mid);border-radius:4px;padding:6px}

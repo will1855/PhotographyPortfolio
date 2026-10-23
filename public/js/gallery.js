@@ -2,6 +2,7 @@
 
 import { state, dom, logImageLoad } from './state.js';
 import { openLightbox } from './lightbox.js';
+import { groupWorkRows, workRowMetrics } from './workLayout.js?v=1';
 
 const ROW_UNIT = 10; // px — grid-auto-rows value; must match CSS in style.css
 let _layoutTimer = null;
@@ -74,7 +75,7 @@ export function getNumCols() {
  * Uses fractional aspect-ratio math for consistency and integer px values to prevent cropping.
  */
 export function layoutGallery() {
-  if (!dom.gallery) return; // Guard: not on home/gallery page
+  if (!dom.gallery || dom.gallery.classList.contains('work-editorial')) return; // Guard: not on home/gallery page
   const numCols = getNumCols();
   const containerWidth = dom.gallery.offsetWidth > 0 ? dom.gallery.offsetWidth : window.innerWidth;
   const colWidth = containerWidth / numCols;
@@ -370,8 +371,8 @@ function _renderDefaultWorkLayout(images) {
 
   // Alternating pattern: [width, marginLeft, gap] — creates editorial rhythm
   const patterns = [
-    { width: '45%',  ml: '10%', gap: '70vh' },
-    { width: '35%',  ml: '55%', gap: '75vh' },
+    { width: '55%',  ml: '10%', gap: '40vh' },
+    { width: '35%',  ml: '55%', gap: '45vh' },
     { width: '50%',  ml: '25%', gap: '70vh' },
     { width: '38%',  ml: '5%',  gap: '80vh' },
     { width: '42%',  ml: '50%', gap: '75vh' },
@@ -392,24 +393,7 @@ function _renderDefaultWorkLayout(images) {
     item.style.marginBottom = 'var(--item-mb)';
 
     const img = document.createElement('img');
-    img.alt      = imgData.alt_text || imgData.title || '';
-    img.loading  = index < 4 ? 'eager'  : 'lazy';
-    img.decoding = 'async';
-    if (index < 4) img.fetchPriority = 'high';
-    if (imgData.width && imgData.height) {
-      img.style.aspectRatio = `${imgData.width} / ${imgData.height}`;
-    }
-    img.addEventListener('load',  () => triggerFadeIn(img));
-
-    const fallback = imgData.public_url_full || imgData.public_url_thumb;
-    if (imgData.public_url_full && imgData.public_url_thumb) {
-      img.srcset = `${imgData.public_url_thumb} 1600w, ${imgData.public_url_full} 3200w`;
-      img.sizes  = `${p.width}`;
-    }
-    img.src = fallback;
-    if (img.complete) {
-      triggerFadeIn(img);
-    }
+    setWorkImage(img, imgData, index, parseFloat(p.width));
 
     item.appendChild(img);
 
@@ -432,6 +416,7 @@ function _renderDefaultWorkLayout(images) {
       item.classList.add('revealed');
     }
   });
+  requestAnimationFrame(fitWorkCaptions);
 }
 
 /**
@@ -441,68 +426,72 @@ function _renderDefaultWorkLayout(images) {
 function _renderCustomWorkLayout(images, layoutData) {
   const gallery = dom.gallery;
   gallery.className = 'gallery work-editorial work-editorial--custom';
-  gallery.style.position = '';
-  gallery.style.height = '';
-
-  const v2Layout = convertLayoutV1toV2(layoutData, images);
-
-  if (v2Layout.titleFontSize) {
-    gallery.style.setProperty('--caption-fs', `${v2Layout.titleFontSize}px`);
-  } else {
-    gallery.style.removeProperty('--caption-fs');
+  gallery.style.position = ''; gallery.style.height = '';
+  const layout = convertLayoutV1toV2(layoutData, images);
+  gallery.style.setProperty('--caption-fs', `${Number(layout.titleFontSize)||14}px`);
+  let order=0;
+  const validItems=layout.items.filter(item=>images.some(image=>image.id===item.imageId));
+  for(const row of groupWorkRows(validItems)) {
+    const metrics=workRowMetrics(row),paired=row.length===2;
+    let wrapper=gallery;
+    if(paired){
+      wrapper=document.createElement('div');wrapper.className='work-row work-row--pair';
+      wrapper.style.width=`${metrics.width}%`;wrapper.style.marginLeft=`${metrics.offset}%`;
+      wrapper.style.marginBottom=`${metrics.gap}vh`;
+      wrapper.style.gridTemplateColumns=metrics.widths.map(width=>`${width}fr`).join(' ');
+      gallery.appendChild(wrapper);
+    }
+    row.forEach((item,index)=>{
+      const data=images.find(image=>image.id===item.imageId);
+      const el=document.createElement('div');
+      el.className=`work-item pos-${paired?'below':item.captionPosition||'below'}`;
+      el.style.setProperty('--item-w',`${metrics.width}%`);
+      el.style.setProperty('--item-ml',`${metrics.offset}%`);
+      el.style.setProperty('--item-mb',`${metrics.gap}vh`);
+      const image=document.createElement('img');
+      const percent=paired?metrics.width*metrics.widths[index]/metrics.widths.reduce((a,b)=>a+b,0):metrics.width;
+      setWorkImage(image,data,order++,percent);
+      el.appendChild(image);
+      if(item.caption?.trim()){
+        const cap=document.createElement('div');cap.className=`work-item-caption align-${item.captionAlign||'left'}`;
+        cap.textContent=item.caption;el.appendChild(cap);captionObserver.observe(cap);
+      }
+      wrapper.appendChild(el);
+      el.classList.add('reveal-on-scroll');revealObserver.observe(el);
+    });
   }
-
-  v2Layout.items.forEach((item, order) => {
-    if (item.type !== 'image') return; // V2 only renders image elements (captions inside)
-    
-    const imgData = images.find(i => i.id === item.imageId);
-    if (!imgData) return;
-
-    const el = document.createElement('div');
-    const pos = item.captionPosition || 'below';
-    el.className = `work-item pos-${pos}`;
-    
-    // Set custom properties for width, offset, and vertical gap
-    el.style.setProperty('--item-w', `${item.width}%`);
-    el.style.setProperty('--item-ml', `${item.offset}%`);
-    el.style.setProperty('--item-mb', `${item.gap}vh`);
-    
-    el.style.width = 'var(--item-w)';
-    el.style.marginLeft = 'var(--item-ml)';
-    el.style.marginBottom = 'var(--item-mb)';
-
-    const img = document.createElement('img');
-    img.alt     = imgData.alt_text || imgData.title || '';
-    img.loading = order < 4 ? 'eager' : 'lazy';
-    img.decoding = 'async';
-    if (imgData.width && imgData.height) {
-      img.style.aspectRatio = `${imgData.width} / ${imgData.height}`;
-    }
-    img.addEventListener('load', () => triggerFadeIn(img));
-
-    // Use full-res URL
-    img.src = imgData.public_url_full || imgData.public_url_thumb;
-    if (img.complete) {
-      triggerFadeIn(img);
-    }
-    el.appendChild(img);
-
-    // Add caption
-    if (item.caption && item.caption.trim()) {
-      const captionEl = document.createElement('div');
-      const align = item.captionAlign || 'left';
-      captionEl.className = `work-item-caption align-${align}`;
-      captionEl.textContent = item.caption;
-      el.appendChild(captionEl);
-      captionObserver.observe(captionEl);
-    }
-
-    gallery.appendChild(el);
-
-    el.classList.add('reveal-on-scroll');
-    revealObserver.observe(el);
-  });
+  requestAnimationFrame(fitWorkCaptions);
 }
+
+function setWorkImage(image, data, order, percent) {
+  image.alt=data.alt_text||data.title||'';
+  image.loading=order<2?'eager':'lazy';image.decoding='async';
+  if(order===0)image.fetchPriority='high';
+  if(data.width&&data.height){image.width=data.width;image.height=data.height;image.style.aspectRatio=`${data.width}/${data.height}`}
+  const width=data.width||3200,candidates=[];
+  if(data.public_url_grid_thumb)candidates.push(`${data.public_url_grid_thumb} ${Math.min(600,width)}w`);
+  if(data.public_url_thumb&&width>600)candidates.push(`${data.public_url_thumb} ${Math.min(1600,width)}w`);
+  if(data.public_url_full&&width>1600)candidates.push(`${data.public_url_full} ${width}w`);
+  if(candidates.length)image.srcset=candidates.join(', ');
+  image.sizes=`(max-width: 768px) 90vw, (min-width: 1400px) ${Math.round(1320*percent/100)}px, calc((100vw - 80px) * ${(percent/100).toFixed(4)})`;
+  image.addEventListener('load',()=>triggerFadeIn(image));
+  image.src=data.public_url_thumb||data.public_url_full;
+  if(image.complete&&image.naturalWidth)triggerFadeIn(image);
+}
+
+function fitWorkCaptions() {
+  if(!dom.gallery?.classList.contains('work-editorial'))return;
+  const viewport=document.documentElement.clientWidth;
+  for(const item of dom.gallery.querySelectorAll('.work-item.pos-left,.work-item.pos-right')){
+    item.classList.remove('caption-stacked');
+    const rect=item.getBoundingClientRect();
+    const available=item.classList.contains('pos-left')?rect.left-44:viewport-rect.right-44;
+    item.classList.toggle('caption-stacked',available<150);
+    item.style.setProperty('--caption-space',`${Math.max(0,Math.min(240,available))}px`);
+  }
+}
+window.addEventListener('resize',()=>requestAnimationFrame(fitWorkCaptions),{passive:true});
+
 
 /**
  * Safely converts layout JSON from freeform v1 structure to list-based staggered v2 structure.

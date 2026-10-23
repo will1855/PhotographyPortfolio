@@ -1,11 +1,11 @@
 'use strict';
 
-const CACHE_NAME = 'willdaviesphoto-cache-v26';
+const CACHE_NAME = 'willdaviesphoto-cache-v27';
 const STATIC_ASSETS = [
   '/',
   '/about',
-  '/style.css?v=22',
-  '/js/main.js?v=21',
+  '/style.css?v=23',
+  '/js/main.js?v=22',
   '/favicon.png?v=3',
   '/apple-touch-icon.png?v=3',
   '/logo.png'

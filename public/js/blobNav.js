@@ -130,6 +130,7 @@ export function initBlobNav(onNavigate) {
   bindKeys();
   bindHover();
   render();
+  nav.dataset.blobReady = 'true';
   prefRM.addEventListener('change', () => {
     if (!prefRM.matches) return;
     dragging = false; anchorDelay = 0; splash.clear(); splashIntent = null;

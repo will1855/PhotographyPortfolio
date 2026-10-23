@@ -1,4 +1,8 @@
 'use strict';
+let previewWorkRows, previewRowMetrics, workListSortable;
+const workRowsReady=import('/js/workLayout.js?v=1').then(module=>{
+  previewWorkRows=module.groupWorkRows;previewRowMetrics=module.workRowMetrics;
+});
 // ─── State ────────────────────────────────────────────────────────────────────
 let sections      = [];   // all sections from DB
 let imagesBySection = {}; // { slug: [imageObj, …] }
@@ -137,6 +141,7 @@ async function loadDashboard() {
     }
 
     buildImageTabs();
+    if (activePanel === 'work') await renderWorkPanel();
   } catch (err) {
     toast('Failed to load dashboard', 'error');
     console.error(err);
@@ -1190,6 +1195,7 @@ function renderSectionsPanel() {
         const sRes = await fetch('/api/admin/sections', { credentials: 'include' });
         sections = await sRes.json();
         buildImageTabs();
+    if (activePanel === 'work') await renderWorkPanel();
         renderSectionsPanel();
       } else {
         toast('Failed to save section', 'error');
@@ -1223,6 +1229,7 @@ document.getElementById('create-section-btn')?.addEventListener('click', async (
 
       // Re-render all panels that depend on sections
       buildImageTabs();
+    if (activePanel === 'work') await renderWorkPanel();
       renderSectionsPanel();
       renderHeroPanel();
     } else {
@@ -1581,6 +1588,7 @@ let workLayoutData  = { version: 2, intro: '', items: [] };
 let workActiveSection = null;
 
 async function renderWorkPanel() {
+  await workRowsReady;
   // Determine non-archive sections (check nav_label, not slug)
   const workSections = sections.filter(s => {
     const lbl = (s.nav_label || s.label || '').toLowerCase().trim();
@@ -1679,6 +1687,11 @@ function _renderWorkListEditor() {
     return;
   }
 
+  let previousIsPaired=false;
+  workLayoutData.items.forEach((item,index)=>{
+    if(index===0||previousIsPaired)item.pairWithPrevious=false;
+    previousIsPaired=!!item.pairWithPrevious;
+  });
   workLayoutData.items.forEach((item, index) => {
     const imgData = workImages.find(i => i.id === item.imageId);
     if (!imgData) return;
@@ -1700,6 +1713,19 @@ function _renderWorkListEditor() {
     // Right Controls
     const controls = document.createElement('div');
     controls.className = 'work-list-item-controls';
+
+    const rowControl=document.createElement('div');rowControl.className='work-control-row';
+    const rowLabel=document.createElement('label');rowLabel.textContent='Row';
+    const rowSelect=document.createElement('select');rowSelect.setAttribute('aria-label','Row arrangement for image '+(index+1));
+    rowSelect.innerHTML='<option value="single">New row</option><option value="pair">Pair with previous</option>';
+    rowSelect.options[1].disabled=index===0||!!workLayoutData.items[index-1]?.pairWithPrevious;
+    rowSelect.value=item.pairWithPrevious?'pair':'single';
+    rowControl.append(rowLabel,rowSelect);controls.appendChild(rowControl);
+    rowSelect.addEventListener('change',()=>{
+      item.pairWithPrevious=rowSelect.value==='pair';
+      if(item.pairWithPrevious&&workLayoutData.items[index+1])workLayoutData.items[index+1].pairWithPrevious=false;
+      _renderWorkListEditor();_renderWorkPreview();
+    });
 
     // Width range slider (20% to 80%)
     const widthRow = document.createElement('div');
@@ -1732,9 +1758,10 @@ function _renderWorkListEditor() {
     const captionRow = document.createElement('div');
     captionRow.className = 'work-control-row work-control-row--caption';
     captionRow.innerHTML = `
-      <input type="text" placeholder="Add uppercase caption..." value="${item.caption || ''}">
+      <input type="text" placeholder="Add caption...">
     `;
     const captionInput = captionRow.querySelector('input');
+    captionInput.value=item.caption||'';
 
     // Position & Alignment selectors
     const posAlignRow = document.createElement('div');
@@ -1830,7 +1857,8 @@ function _renderWorkListEditor() {
 
   // Re-initialise SortableJS
   if (window.Sortable) {
-    Sortable.create(container, {
+    workListSortable?.destroy();
+    workListSortable = Sortable.create(container, {
       handle: '.work-list-item-drag-handle',
       animation: 150,
       onEnd: () => {
@@ -1841,6 +1869,7 @@ function _renderWorkListEditor() {
           if (found) sortedItems.push(found);
         });
         workLayoutData.items = sortedItems;
+        _renderWorkListEditor();
         _renderWorkPreview();
       }
     });
@@ -1848,46 +1877,26 @@ function _renderWorkListEditor() {
 }
 
 function _renderWorkPreview() {
-  const stage = document.getElementById('work-preview-stage');
-  if (!stage) return;
-  stage.innerHTML = '';
-
-  workLayoutData.items.forEach(item => {
-    const imgData = workImages.find(i => i.id === item.imageId);
-    if (!imgData) return;
-
-    const block = document.createElement('div');
-    const pos = item.captionPosition || 'below';
-    block.className = `work-preview-item pos-${pos}`;
-    block.style.width = `${item.width}%`;
-    block.style.marginLeft = `${item.offset}%`;
-    // Scale down gap height in preview so it's easier to scan visually (1vh -> 3.5px in preview stage)
-    block.style.marginBottom = `${item.gap * 3.5}px`;
-
-    const img = document.createElement('img');
-    img.src = imgData.public_url_grid_thumb || imgData.public_url_thumb;
-    img.alt = '';
-    if (imgData.width && imgData.height) {
-      img.style.aspectRatio = `${imgData.width} / ${imgData.height}`;
-    }
-
-    block.appendChild(img);
-
-    if (item.caption && item.caption.trim()) {
-      const cap = document.createElement('div');
-      const align = item.captionAlign || 'left';
-      cap.className = `work-preview-caption align-${align}`;
-      cap.textContent = item.caption;
-      
-      if (workLayoutData.titleFontSize) {
-        cap.style.fontSize = `${workLayoutData.titleFontSize}px`;
+  const stage=document.getElementById('work-preview-stage');if(!stage||!previewWorkRows)return;
+  stage.innerHTML='';
+  const items=workLayoutData.items.filter(item=>workImages.some(image=>image.id===item.imageId));
+  for(const row of previewWorkRows(items)){
+    const metrics=previewRowMetrics(row),paired=row.length===2;
+    const wrapper=document.createElement('div');wrapper.className=paired?'work-preview-row work-preview-row--pair':'work-preview-row';
+    wrapper.style.width=metrics.width+'%';wrapper.style.marginLeft=metrics.offset+'%';wrapper.style.marginBottom=metrics.gap*3.5+'px';
+    if(paired)wrapper.style.gridTemplateColumns=metrics.widths.map(width=>width+'fr').join(' ');
+    for(const item of row){
+      const data=workImages.find(image=>image.id===item.imageId),block=document.createElement('div');
+      block.className='work-preview-item pos-below';
+      const image=document.createElement('img');image.src=data.public_url_grid_thumb||data.public_url_thumb;image.alt='';block.appendChild(image);
+      if(item.caption?.trim()){
+        const cap=document.createElement('div');cap.className='work-preview-caption align-'+(item.captionAlign||'left');cap.textContent=item.caption;
+        cap.style.fontSize=(workLayoutData.titleFontSize||14)+'px';block.appendChild(cap);
       }
-      
-      block.appendChild(cap);
+      wrapper.appendChild(block);
     }
-
-    stage.appendChild(block);
-  });
+    stage.appendChild(wrapper);
+  }
 }
 
 function _renderWorkPool() {
@@ -1934,7 +1943,7 @@ function _addImageToLayout(imageId) {
     caption: imgData.title || '',
     width: 45, // default
     offset: 15, // default
-    gap: 80, // default
+    gap: 40, // default
     captionPosition: 'below',
     captionAlign: 'left'
   };
