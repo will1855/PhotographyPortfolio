@@ -152,7 +152,7 @@ header h1 {
   line-height: 1;
 }
 
-header h1 a {
+header h1 :is(a, button) {
   display: inline-flex;
   align-items: center;
   text-decoration: none;
@@ -162,30 +162,38 @@ header h1 a {
 .site-logo {
   height: 120px;
   width: auto;
-  max-width: 800px;
+  max-width: min(800px, 70vw);
   margin-top: 0;
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.45));
-  transition: opacity 200ms ease, filter 200ms ease, transform 200ms ease;
+  /* Transforms are animated only during the short jelly bounce. */
+  transition: opacity 160ms ease;
 }
 
-header h1 a:hover .site-logo {
+header h1 :is(a, button):hover .site-logo {
   opacity: 0.85;
 }
 
-.site-logo.dvd-bouncing {
-  user-select: none;
-  -webkit-user-drag: none;
-  touch-action: none;
-  will-change: left, top;
-  /* filter: drop-shadow(0 0 16px #ff3366) drop-shadow(0 0 35px #ff3366); */
+#site-title button {
+  position: relative;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.site-logo-placeholder {
-  pointer-events: none;
+#site-title button:focus-visible {
+  outline: 2px solid #EF3E23;
+  outline-offset: 6px;
+  border-radius: 12px;
 }
 
+.jelly-lettering { aspect-ratio: 1099 / 640; overflow: visible; fill: #EF3E23; }
+.liquid-playing .site-logo { transition: none; opacity: 1; }
+/* Geometry only changes during the brief interaction; no permanent GPU layers. */
 
 /* ── Hero ──────────────────────────────────────────────────────────────────── */
 .hero {
@@ -317,8 +325,8 @@ nav::after {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 36px;
+  width: 36px;
+  height: 44px;
   position: relative;
   z-index: 2;
   background: transparent !important;
@@ -354,9 +362,29 @@ nav::after {
   z-index: 1;
 }
 
-.blob-dot,
-.blob-active {
-  will-change: d, cx, cy, r;
+.blob-link::after {
+  content: attr(aria-label);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translate(-50%, -3px);
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: rgba(8, 8, 8, .86);
+  color: #f3f3f0;
+  font: 500 11px/1.2 'Instrument Sans', sans-serif;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.blob-link:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+@media (hover: hover) {
+  .blob-link:hover::after { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-logo, .blob-link::after { transition: none; }
 }
 
 .sr-only {
@@ -1276,7 +1304,7 @@ header::after {
 
 /* Keep the name and nav interactive even though the container has none */
 header h1,
-header h1 a,
+header h1 :is(a, button),
 nav {
   pointer-events: auto;
 }

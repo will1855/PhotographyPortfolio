@@ -13,7 +13,7 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await expect(page.locator('#app-content')).toBeVisible();
     
     // 3. Verify main title logo renders correctly
-    await expect(page.locator('#site-title img')).toHaveAttribute('alt', 'Will Davies');
+    await expect(page.locator('#site-title .site-logo')).toHaveAttribute('aria-label', 'Will Davies');
   });
 
   test('should handle smooth SPA routing to the About page and submit messages', async ({ page }) => {
@@ -106,28 +106,99 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     console.log('Verified E2E Diagnostic Output:\n', logs.join('\n'));
   });
 
-  test('should trigger DVD bouncing mode on logo click and return to navbar on tab switch or re-click', async ({ page }) => {
+  test('logo plays one jelly bounce in place and resets after rapid clicks', async ({ page }) => {
     await page.goto('/');
+    const button = page.getByRole('button', { name: 'Animate Will logo' });
+    const logo = page.locator('#site-title .site-logo');
+    const before = await logo.boundingBox();
+    await expect(logo.locator('g[data-letter]')).toHaveCount(4);
+    await page.evaluate(() => {
+      window.jellyChangedLetters = new Set();
+      const observer = new MutationObserver(records => records.forEach(record => window.jellyChangedLetters.add(record.target.parentElement.dataset.letter + record.target.parentElement.parentElement.children.length + Array.from(record.target.parentElement.parentElement.children).indexOf(record.target.parentElement))));
+      observer.observe(document.querySelector('.jelly-lettering'), { subtree: true, attributes: true, attributeFilter: ['d'] });
+    });
+    await button.click();
+    await expect(button).toHaveClass(/liquid-playing/);
+    await expect.poll(() => page.evaluate(() => window.jellyChangedLetters.size)).toBe(4);
+    await button.click();
+    await expect(button).not.toHaveClass(/liquid-playing/, { timeout: 3000 });
+    expect(await logo.boundingBox()).toEqual(before);
+    await expect(page).toHaveURL('http://localhost:3000/');
+    await expect(page.locator('#site-title .site-logo')).toBeVisible();
+  });
 
-    const logoLink = page.locator('#site-title a');
-    const logoImg = page.locator('.site-logo');
+  test('liquid nav settles while hovered and routes after repeated selections', async ({ page }) => {
+    await page.goto('/');
+    const work = page.getByRole('link', { name: 'My Work', exact: true });
+    await work.click();
+    await expect(work).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL(/section=/);
+    const archive = page.getByRole('link', { name: 'Archive', exact: true });
+    await archive.click();
+    await expect(archive).toHaveAttribute('aria-current', 'page');
+    await expect(page).toHaveURL(/section=archive/);
+    // Observe rendered geometry, rather than the implementation's spring state.
+    // The pointer deliberately remains over the nav after the last click.
+    await expect.poll(() => page.evaluate(async () => {
+      const path = document.querySelector('.blob-active');
+      let changes = 0;
+      const observer = new MutationObserver(records => { changes += records.length; });
+      observer.observe(path, { attributes: true, attributeFilter: ['d'] });
+      await new Promise(resolve => setTimeout(resolve, 150));
+      observer.disconnect();
+      return changes;
+    }), { timeout: 5000 }).toBe(0);
+  });
 
-    // 1. Click site logo to start DVD bounce
-    await logoLink.click();
-    await expect(logoImg).toHaveClass(/dvd-bouncing/);
+  test('keyboard navigation and logo respect reduced motion', async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    const button = page.getByRole('button', { name: 'Animate Will logo' });
+    await button.press('Enter');
+    await expect(button).not.toHaveClass(/liquid-playing/);
+    const about = page.getByRole('link', { name: 'About', exact: true });
+    await about.press('Enter');
+    await expect(page).toHaveURL(/\/about$/);
+    await expect(about).toHaveAttribute('aria-current', 'page');
+    await page.getByRole('link', { name: 'Home', exact: true }).press('Enter');
+    await expect(page).toHaveURL('http://localhost:3000/');
+    await expect(page.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute('aria-current', 'page');
+  });
 
-    // 2. Click bouncing logo again to stop DVD bounce and return to nav
-    await logoImg.click({ force: true });
-    await expect(logoImg).not.toHaveClass(/dvd-bouncing/);
+  test('splash appears at the clicked destination, and dragging emits none', async ({ page }) => {
+    await page.goto('/');
+    await expect(page.locator('.blob-splash')).toBeAttached();
+    const watchSplash = () => page.evaluate(() => {
+      window.splashFrames = [];
+      window.splashObserver?.disconnect();
+      window.splashObserver = new MutationObserver(records => {
+        for (const record of records) {
+          const d = record.target.getAttribute('d');
+          if (d) window.splashFrames.push(d);
+        }
+      });
+      window.splashObserver.observe(document.querySelector('.blob-splash'), { subtree: true, attributes: true, attributeFilter: ['d'] });
+    });
+    await watchSplash();
+    const about = page.getByRole('link', { name: 'About', exact: true });
+    const target = await about.boundingBox(), nav = await page.locator('#site-nav').boundingBox();
+    await about.click();
+    await expect.poll(() => page.evaluate(() => window.splashFrames.length)).toBeGreaterThan(0);
+    const firstX = await page.evaluate(() => Number(window.splashFrames[0].match(/^M([-\d.]+)/)[1]));
+    expect(Math.abs(firstX - (target.x + target.width/2 - nav.x))).toBeLessThan(22);
 
-    // 3. Click site logo to start DVD bounce again
-    await logoLink.click();
-    await expect(logoImg).toHaveClass(/dvd-bouncing/);
-
-    // 4. Click a navigation tab (e.g. About) and verify logo returns to nav bar
-    const aboutLink = page.locator('nav#site-nav a[aria-label="About"]');
-    await aboutLink.click();
-    await expect(logoImg).not.toHaveClass(/dvd-bouncing/);
+    await page.goto('/');
+    await expect(page.locator('.blob-splash')).toBeAttached();
+    await watchSplash();
+    const home = await page.getByRole('link', { name: 'Home', exact: true }).boundingBox();
+    const archive = await page.getByRole('link', { name: 'Archive', exact: true }).boundingBox();
+    await page.mouse.move(home.x+home.width/2, home.y+home.height/2);
+    await page.mouse.down();
+    await page.mouse.move(archive.x+archive.width/2, archive.y+archive.height/2, { steps: 8 });
+    await page.mouse.up();
+    await expect(page).toHaveURL(/section=archive/);
+    await page.waitForTimeout(1000); // Cover the entire possible particle lifetime.
+    expect(await page.evaluate(() => window.splashFrames.length)).toBe(0);
   });
 
 });

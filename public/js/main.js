@@ -7,8 +7,8 @@ import { renderLightboxSlides } from './lightbox.js';
 import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
 import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
-import { initDvdLogo, stopDvdBounce } from './dvdLogo.js';
-import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js';
+import { initLiquidLogo, stopLiquidLogo } from './liquidLogo.js?v=4';
+import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js?v=9';
 
 // Local variables in main scope
 let siteConfigCache = null;
@@ -55,7 +55,7 @@ export async function initPage() {
     }
     applyConfig(siteConfigCache);
     setupNavPrefetch();
-    initDvdLogo();
+    initLiquidLogo();
 
     // Blob navigation — init (idempotent) and set active dot
     initBlobNav(async (link) => {
@@ -275,7 +275,8 @@ function applyConfig(config) {
 
   const existingLogo = document.querySelector('.site-logo');
   if (existingLogo) {
-    existingLogo.alt = site_title;
+    if (existingLogo.tagName.toLowerCase() === 'svg') existingLogo.setAttribute('aria-label', site_title);
+    else existingLogo.alt = site_title;
   } else if (dom.siteTitle && dom.siteTitle.querySelector('a')) {
     const titleLink = dom.siteTitle.querySelector('a');
     const logoImg = titleLink.querySelector('img');
@@ -493,6 +494,8 @@ document.addEventListener('click', async (e) => {
   const a = e.target.closest('a');
   if (!a) return;
 
+  if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
   // Only intercept same-origin, standard navigations
   if (a.origin !== window.location.origin) return;
   if (a.target === '_blank') return;
@@ -524,7 +527,7 @@ window.addEventListener('popstate', () => {
  * scrolls to the top, and re-boots the page.
  */
 async function handleRoute(url) {
-  stopDvdBounce(true);
+  stopLiquidLogo();
   // Clean up slideshow before route change
   cleanupHeroSlideshow();
 

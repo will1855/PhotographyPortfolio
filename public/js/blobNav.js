@@ -1,4 +1,6 @@
 'use strict';
+import { liquidSurface } from './liquidSurface.js?v=1';
+import { NavSplash } from './navSplash.js?v=5';
 
 /**
  * Organic Blob Navigation
@@ -29,7 +31,7 @@ const SP_ANCHOR = { k: 140, d: 15 };
 const SP_SNAP   = { k: 300, d: 22 };
 
 // ── State ──────────────────────────────────────────────────────────────────
-let nav, svg, pathEl;
+let nav, svg, pathEl, splashPath;
 let dots   = [];              // SVG <circle> per dot
 let links  = [];              // <a.blob-link> elements
 let ctr    = [];              // {x,y} centres in nav-local px
@@ -51,7 +53,9 @@ let tActive = false, tDone = false, tLink = null, tOriginX = 0;
 let mIn = false, mx = 0, my = 0;
 
 // Animation
-let raf = null;
+let raf = null, lastTime = 0, anchorDelay = 0, delayedTarget = 0;
+const splash = new NavSplash();
+let splashIntent = null;
 
 const prefRM = window.matchMedia('(prefers-reduced-motion: reduce)');
 
@@ -68,54 +72,16 @@ class Spring {
 }
 
 // ── SVG path generation ────────────────────────────────────────────────────
-const KP = 0.5522847498;
-
-/** Slightly irregular circle for resting blob. */
-function circD(cx, cy, r) {
-  const a = KP * 1.014, b = KP * 0.990, c = KP * 1.008, d = KP * 0.988;
-  return `M${cx},${cy-r}`
-    + ` C${cx+r*a},${cy-r} ${cx+r},${cy-r*b} ${cx+r},${cy}`
-    + ` C${cx+r},${cy+r*c} ${cx+r*d},${cy+r} ${cx},${cy+r}`
-    + ` C${cx-r*a},${cy+r} ${cx-r},${cy+r*b} ${cx-r},${cy}`
-    + ` C${cx-r},${cy-r*c} ${cx-r*d},${cy-r} ${cx},${cy-r}Z`;
-}
-
-/**
- * Two-lobe blob connected by an organic neck.
- * The neck narrows proportionally to the span between lobes.
- */
-function blobD(ax, bx, cy, ar, br) {
-  let lx, rx, lr, rr;
-  if (ax <= bx) { lx = ax; rx = bx; lr = ar; rr = br; }
-  else           { lx = bx; rx = ax; lr = br; rr = ar; }
-
-  const span = rx - lx;
-  if (span < 0.5) return circD((lx + rx) / 2, cy, (lr + rr) / 2);
-
-  const maxR = Math.max(lr, rr);
-  const nk   = Math.max(1.5, maxR * Math.max(0.10, 1 - span / (maxR * 5)));
-
-  const mid = (lx + rx) / 2;
-  const cp  = (span / 2) * 0.38;
-
-  return `M${lx},${cy-lr}`
-    + ` C${lx+cp},${cy-lr} ${mid-cp},${cy-nk} ${mid},${cy-nk}`
-    + ` C${mid+cp},${cy-nk} ${rx-cp},${cy-rr} ${rx},${cy-rr}`
-    + ` C${rx+rr*KP},${cy-rr} ${rx+rr},${cy-rr*KP} ${rx+rr},${cy}`
-    + ` C${rx+rr},${cy+rr*KP} ${rx+rr*KP},${cy+rr} ${rx},${cy+rr}`
-    + ` C${rx-cp},${cy+rr} ${mid+cp},${cy+nk} ${mid},${cy+nk}`
-    + ` C${mid-cp},${cy+nk} ${lx+cp},${cy+lr} ${lx},${cy+lr}`
-    + ` C${lx-lr*KP},${cy+lr} ${lx-lr},${cy+lr*KP} ${lx-lr},${cy}`
-    + ` C${lx-lr},${cy-lr*KP} ${lx-lr*KP},${cy-lr} ${lx},${cy-lr}Z`;
-}
-
 /** Derive lobe radii from spring velocities (velocity-dependent squash). */
 function geom() {
   const vel = Math.abs(tip.vel) + Math.abs(anchor.vel);
   const sq  = Math.min(vel * 0.00025, 0.12);
+  const stretch = Math.min(Math.abs(tip.v - anchor.v) / (ACTIVE_R * 2), 1);
+  const tail = 1 - stretch * .62;
   return {
-    tr: ACTIVE_R * (1 - sq * 0.5),
-    ar: ACTIVE_R * (1 + sq * 0.12),
+    // Transfer volume into the leading lobe as the sticky tail thins.
+    tr: ACTIVE_R * Math.sqrt(1 - tail * tail * stretch) * (1 - sq * .5),
+    ar: ACTIVE_R * tail,
   };
 }
 
@@ -128,6 +94,7 @@ export function initBlobNav(onNavigate) {
 
   links = Array.from(nav.querySelectorAll('a.blob-link'));
   if (!links.length) return;
+  links.forEach(link => { link.draggable = false; });
 
   if (_init) { reflow(); return; }
   _init = true;
@@ -148,8 +115,11 @@ export function initBlobNav(onNavigate) {
   pathEl.setAttribute('fill', COLOR);
   pathEl.classList.add('blob-active');
   svg.appendChild(pathEl);
+  splashPath = ns('g'); splashPath.setAttribute('fill', COLOR);
+  splashPath.classList.add('blob-splash'); svg.appendChild(splashPath);
   nav.appendChild(svg);
 
+  active = Math.max(0, links.findIndex(l => l.getAttribute('aria-current') === 'page'));
   reflow();
 
   const cx = ctr[active]?.x ?? 0;
@@ -159,6 +129,16 @@ export function initBlobNav(onNavigate) {
   bindPointer();
   bindKeys();
   bindHover();
+  render();
+  prefRM.addEventListener('change', () => {
+    if (!prefRM.matches) return;
+    dragging = false; anchorDelay = 0; splash.clear(); splashIntent = null;
+    tip.set(ctr[active]?.x ?? 0); anchor.set(tip.v);
+    if (tActive && !tDone && tLink) { tDone = true; _onNav?.(tLink); }
+    tActive = false;
+    if (raf) cancelAnimationFrame(raf);
+    raf = null; lastTime = 0; render();
+  });
 
   window.addEventListener('resize', () => {
     reflow();
@@ -173,6 +153,7 @@ export function updateBlobNavActive(idx, immediate = false) {
   if (idx < 0 || !links.length || idx >= links.length) return;
   if (immediate) {
     active = idx;
+    anchorDelay = 0;
     const cx = ctr[idx]?.x ?? 0;
     tip?.set(cx); anchor?.set(cx); render();
     return;
@@ -214,18 +195,47 @@ function ns(tag) { return document.createElementNS('http://www.w3.org/2000/svg',
 function render() {
   if (!pathEl || !tip) return;
   const { tr, ar } = geom();
-  pathEl.setAttribute('d', blobD(anchor.v, tip.v, cy0, ar, tr));
-  dots.forEach((c, i) => { c.style.opacity = i === active ? '0' : '1'; });
+  const lobes = dots.map(c => ({ x: +c.getAttribute('cx'), y: +c.getAttribute('cy'), r: +c.getAttribute('r') }));
+  lobes.push({ x: anchor.v, y: cy0, r: ar }, { x: tip.v, y: cy0, r: tr });
+  pathEl.setAttribute('d', liquidSurface(lobes, Math.min((Math.abs(tip.vel)+Math.abs(anchor.vel))*.002, .8)));
+  dots.forEach(c => { c.style.opacity = '0'; });
+  const shapes=splash.shapes();
+  while(splashPath.children.length>shapes.length)splashPath.lastElementChild.remove();
+  shapes.forEach((shape,i)=>{
+    let path=splashPath.children[i];
+    if(!path){path=ns('path');splashPath.appendChild(path)}
+    path.setAttribute('d',shape.d);path.setAttribute('opacity',shape.opacity.toFixed(3));
+  });
+  links.forEach((link, i) => {
+    if (i === active && !link.hasAttribute('aria-current')) link.setAttribute('aria-current', 'page');
+    else if (i !== active && link.hasAttribute('aria-current')) link.removeAttribute('aria-current');
+  });
 }
 
 // ── Animation loop ─────────────────────────────────────────────────────────
-function go() { if (!raf) raf = requestAnimationFrame(tick); }
+function go() { if (!raf) { lastTime = 0; raf = requestAnimationFrame(tick); } }
 
-function tick() {
-  const dt = 1 / 60;
+function tick(now) {
+  const dt = lastTime ? Math.min((now - lastTime) / 1000, .1) : 1 / 60;
+  lastTime = now;
+  if (anchorDelay) {
+    anchorDelay = Math.max(0, anchorDelay - dt);
+    if (!anchorDelay) anchor.t = delayedTarget;
+  }
 
-  if (!dragging) { tip.step(dt); anchor.step(dt); }
-  else           { anchor.step(dt); }
+  const steps=Math.max(1,Math.ceil(dt*120));
+  for(let i=0;i<steps;i++){if(!dragging)tip.step(dt/steps);anchor.step(dt/steps)}
+  splash.step(dt);
+  if (splashIntent) {
+    const destination=ctr[active]?.x;
+    // Emit at first contact with the destination, independently of the earlier
+    // page-routing callback. Drag transitions never create an impact intent.
+    if (destination != null && Math.abs(destination-tip.v) <= ACTIVE_R*.8+DOT_R*.5) {
+      splash.start({ ...splashIntent, speed: Math.abs(tip.vel),
+        x: destination, y: cy0 });
+      splashIntent=null;
+    }
+  }
 
   // Fire page nav mid-animation
   if (tActive && !tDone && tLink) {
@@ -240,44 +250,34 @@ function tick() {
     }
   }
 
-  if (mIn && !dragging) proximity();
   render();
 
   const settled = tip.ok() && anchor.ok() && !dragging;
-  if (settled && !mIn) { tActive = false; raf = null; }
+  if (settled && !anchorDelay && !splash.active) { tActive = false; raf = null; lastTime = 0; }
   else                 { raf = requestAnimationFrame(tick); }
 }
 
 // ── Pointer events ─────────────────────────────────────────────────────────
 function bindPointer() {
-  // Capture-phase click handler: prevent default link behaviour
+  // Click activation also covers keyboard/assistive-technology generated clicks.
   nav.addEventListener('click', e => {
-    if (e.target.closest('a.blob-link')) { e.preventDefault(); e.stopImmediatePropagation(); }
+    const a = e.target.closest('a.blob-link');
+    if (!a || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey) return;
+    e.preventDefault(); e.stopImmediatePropagation();
+    if (nav.dataset.dragClick === 'true') { delete nav.dataset.dragClick; return; }
+    navTo(+a.dataset.navIndex);
   }, true);
 
   nav.addEventListener('pointerdown', e => {
-    if (!e.isPrimary) return;
-    const header = nav.closest('header');
-    if (header && (header.classList.contains('hidden-header') || getComputedStyle(header).visibility === 'hidden')) return;
+    delete nav.dataset.dragClick;
+    if (!e.isPrimary || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || prefRM.matches) return;
     const a = e.target.closest('a.blob-link');
-    if (!a) return;
-    const idx = +a.dataset.navIndex;
-    if (isNaN(idx)) return;
-    e.preventDefault();
+    if (!a || +a.dataset.navIndex !== active) return;
+    splashIntent = null; splash.clear();
+    dragging = true; dragPtrId = e.pointerId;
+    dragOrigin = ctr[active].x; anchorDelay = 0;
+    tip.set(dragOrigin); anchor.t = dragOrigin;
     nav.setPointerCapture?.(e.pointerId);
-    dragPtrId = e.pointerId;
-
-    if (idx === active) {
-      dragging = true;
-      dragOrigin = ctr[active].x;
-      const nr = nav.getBoundingClientRect();
-      tip.v = e.clientX - nr.left; tip.vel = 0;
-      anchor.t = dragOrigin;
-      anchor.k = SP_ANCHOR.k; anchor.d = SP_ANCHOR.d;
-      go();
-    } else {
-      navTo(idx);
-    }
   });
 
   nav.addEventListener('pointermove', e => {
@@ -294,6 +294,7 @@ function bindPointer() {
     const maxX = (ctr[ctr.length - 1]?.x ?? 100) + 30;
     let lx = Math.max(minX, Math.min(maxX, e.clientX - nr.left));
 
+    if (Math.abs(lx - dragOrigin) > 5) nav.dataset.dragClick = 'true';
     tip.v = lx; tip.vel = 0;
     anchor.t = dragOrigin + (lx - dragOrigin) * 0.12;
 
@@ -322,7 +323,7 @@ function bindPointer() {
     }
 
     if (best >= 0 && bestD < SNAP_PX && best !== active) {
-      navTo(best);
+      navTo(best, 'drag');
     } else {
       // Spring back
       const cx = ctr[active].x;
@@ -348,16 +349,24 @@ function animateTo(idx) {
   if (prefRM.matches) { tip.set(tx); anchor.set(tx); render(); return; }
 
   tip.k = SP_TIP.k; tip.d = SP_TIP.d; tip.t = tx;
-  setTimeout(() => {
-    anchor.k = SP_ANCHOR.k; anchor.d = SP_ANCHOR.d; anchor.t = tx;
-  }, 65);
+  anchor.k = SP_ANCHOR.k; anchor.d = SP_ANCHOR.d;
+  delayedTarget = tx; anchorDelay = .065;
   go();
 }
 
-function navTo(idx) {
+function navTo(idx, source = 'click') {
   if (idx === active && !tActive) return;
   if (idx < 0 || idx >= links.length) return;
 
+  splash.clear(); splashIntent = null;
+  if (source === 'click' && !prefRM.matches) {
+    const destination=ctr[idx]?.x ?? tip.v;
+    splashIntent = {
+      distance: Math.abs(destination-tip.v),
+      spacing: Math.abs((ctr[1]?.x ?? 44)-(ctr[0]?.x ?? 0)) || 44,
+      direction: Math.sign(destination-tip.v) || 1,
+    };
+  }
   if (prefRM.matches) {
     active = idx;
     const tx = ctr[idx]?.x ?? 0;
@@ -375,7 +384,7 @@ function navTo(idx) {
 
 // ── Hover proximity ────────────────────────────────────────────────────────
 function bindHover() {
-  nav.addEventListener('pointerenter', () => { mIn = true; go(); }, { passive: true });
+  nav.addEventListener('pointerenter', () => { mIn = true; }, { passive: true });
   nav.addEventListener('pointerleave', () => {
     mIn = false;
     dots.forEach((c, i) => {
@@ -384,11 +393,13 @@ function bindHover() {
       c.setAttribute('cy', p.y + q.dy);
       c.setAttribute('r',  DOT_R + q.dr);
     });
+    render();
   }, { passive: true });
   nav.addEventListener('pointermove', e => {
-    if (dragging) return;
+    if (dragging || prefRM.matches) return;
     const nr = nav.getBoundingClientRect();
     mx = e.clientX - nr.left; my = e.clientY - nr.top;
+    proximity(); render();
   }, { passive: true });
 }
 
