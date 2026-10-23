@@ -8,7 +8,7 @@ import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
 import { dom, state } from './state.js';
 import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
 import { initLiquidLogo, stopLiquidLogo } from './liquidLogo.js?v=4';
-import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js?v=9';
+import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js?v=10';
 
 // Local variables in main scope
 let siteConfigCache = null;

@@ -1577,8 +1577,8 @@ body.cinematic-bg-active .cinematic-vignette {
 .gallery.work-editorial .work-row--pair .work-item-caption {width:100%!important}
 
 /* The same links stay usable before animation setup or during an outage. */
-#site-nav:not([data-blob-ready]) .blob-link {width:auto;min-width:44px;font-size:12px;color:var(--text);padding:0 6px}
-#site-nav:not([data-blob-ready]) .sr-only {position:static;width:auto;height:auto;clip:auto;overflow:visible;margin:0;white-space:nowrap}
+#site-nav:not([data-blob-ready]):not(:has(.blob-svg)) .blob-link {width:auto;min-width:44px;font-size:12px;color:var(--text);padding:0 6px}
+#site-nav:not([data-blob-ready]):not(:has(.blob-svg)) .sr-only {position:static;width:auto;height:auto;clip:auto;overflow:visible;margin:0;white-space:nowrap}
 
 /* A portrait and biography, followed by a separate contact area. */
 .about-content {max-width:1120px;padding:220px 48px 80px}

@@ -78,3 +78,19 @@ test('editor can pair, save and unpair without a database migration',async({page
  await page.getByLabel('Row arrangement for image 2').selectOption('single');
  await expect(page.locator('.work-preview-row--pair')).toHaveCount(0);
 });
+
+test('liquid navigation hides fallback labels even with a previously cached module',async({page})=>{
+ await page.goto('/');
+ await expect(page.locator('#site-nav .blob-svg')).toBeVisible();
+ const geometry=()=>page.locator('#site-nav .blob-link').evaluateAll(links=>links.map(link=>{
+  const text=link.querySelector('.sr-only');const style=getComputedStyle(text);
+  return {width:link.getBoundingClientRect().width,hidden:style.position==='absolute'&&style.overflow==='hidden'};
+ }));
+ const ready=await geometry();expect(ready.every(link=>link.hidden)).toBe(true);
+ // The previous release's cached module draws the SVG but never sets this flag.
+ await page.locator('#site-nav').evaluate(nav=>nav.removeAttribute('data-blob-ready'));
+ expect(await geometry()).toEqual(ready);
+ await page.getByRole('link',{name:'About',exact:true}).click();
+ await expect(page.locator('.about-biography')).toBeVisible();
+ expect((await geometry()).every(link=>link.hidden)).toBe(true);
+});

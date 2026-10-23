@@ -118,6 +118,8 @@ export function initBlobNav(onNavigate) {
   splashPath = ns('g'); splashPath.setAttribute('fill', COLOR);
   splashPath.classList.add('blob-splash'); svg.appendChild(splashPath);
   nav.appendChild(svg);
+  // Restore compact link geometry before measuring the dot centres.
+  nav.dataset.blobReady = 'true';
 
   active = Math.max(0, links.findIndex(l => l.getAttribute('aria-current') === 'page'));
   reflow();
@@ -130,7 +132,6 @@ export function initBlobNav(onNavigate) {
   bindKeys();
   bindHover();
   render();
-  nav.dataset.blobReady = 'true';
   prefRM.addEventListener('change', () => {
     if (!prefRM.matches) return;
     dragging = false; anchorDelay = 0; splash.clear(); splashIntent = null;
@@ -230,7 +231,7 @@ function tick(now) {
   if (splashIntent) {
     const destination=ctr[active]?.x;
     // Emit at first contact with the destination, independently of the earlier
-    // page-routing callback. Drag transitions never create an impact intent.
+    // page-routing callback, for both clicks and completed drag releases.
     if (destination != null && Math.abs(destination-tip.v) <= ACTIVE_R*.8+DOT_R*.5) {
       splash.start({ ...splashIntent, speed: Math.abs(tip.vel),
         x: destination, y: cy0 });
@@ -360,12 +361,13 @@ function navTo(idx, source = 'click') {
   if (idx < 0 || idx >= links.length) return;
 
   splash.clear(); splashIntent = null;
-  if (source === 'click' && !prefRM.matches) {
+  if (!prefRM.matches) {
     const destination=ctr[idx]?.x ?? tip.v;
+    const origin=source==='drag'?dragOrigin:tip.v;
     splashIntent = {
-      distance: Math.abs(destination-tip.v),
+      distance: Math.abs(destination-origin),
       spacing: Math.abs((ctr[1]?.x ?? 44)-(ctr[0]?.x ?? 0)) || 44,
-      direction: Math.sign(destination-tip.v) || 1,
+      direction: Math.sign(destination-origin) || 1,
     };
   }
   if (prefRM.matches) {

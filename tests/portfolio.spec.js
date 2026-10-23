@@ -165,7 +165,7 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await expect(page.getByRole('link', { name: 'Home', exact: true })).toHaveAttribute('aria-current', 'page');
   });
 
-  test('splash appears at the clicked destination, and dragging emits none', async ({ page }) => {
+  test('splash appears at click and drag destinations, never during dragging', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('.blob-splash')).toBeAttached();
     const watchSplash = () => page.evaluate(() => {
@@ -195,10 +195,13 @@ test.describe('Photography Portfolio E2E Test Suite', () => {
     await page.mouse.move(home.x+home.width/2, home.y+home.height/2);
     await page.mouse.down();
     await page.mouse.move(archive.x+archive.width/2, archive.y+archive.height/2, { steps: 8 });
+    expect(await page.evaluate(() => window.splashFrames.length)).toBe(0);
     await page.mouse.up();
     await expect(page).toHaveURL(/section=archive/);
-    await page.waitForTimeout(1000); // Cover the entire possible particle lifetime.
-    expect(await page.evaluate(() => window.splashFrames.length)).toBe(0);
+    await expect.poll(() => page.evaluate(() => window.splashFrames.length)).toBeGreaterThan(0);
+    const dragX = await page.evaluate(() => Number(window.splashFrames[0].match(/^M([-\d.]+)/)[1]));
+    const navBox = await page.locator('#site-nav').boundingBox();
+    expect(Math.abs(dragX - (archive.x + archive.width/2 - navBox.x))).toBeLessThan(22);
   });
 
   test('direct About loads and reloads keep the correct page and JSON APIs', async ({ page, request }) => {
