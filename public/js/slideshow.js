@@ -87,7 +87,7 @@ export function initHeroSlideshow(heroes) {
       if (img.dataset.listenersBound !== 'true') {
         img.dataset.listenersBound = 'true';
         img.addEventListener('error', handleImgError, { once: true, signal });
-        if (img.complete && img.naturalWidth === 0) {
+        if (img.getAttribute('src') && img.complete && img.naturalWidth === 0) {
           handleImgError();
         }
       }
@@ -96,11 +96,11 @@ export function initHeroSlideshow(heroes) {
       const loadSlideImage = () => {
         if (!img.src || img.src === window.location.href || img.src === '') {
           const srcVal = img.dataset.src || h.thumb_url;
-          const srcSetVal = img.dataset.srcset || (h.grid_thumb_url ? `${h.grid_thumb_url} 600w, ${h.thumb_url} 1600w` : null);
+          const srcSetVal = h.srcset || img.dataset.srcset || (h.grid_thumb_url ? `${h.grid_thumb_url} 600w, ${h.thumb_url} 1600w` : null);
           
           if (srcSetVal) {
             img.srcset = srcSetVal;
-            img.sizes = '100vw';
+            img.sizes = h.sizes || '100vw';
           }
           img.src = srcVal;
           logImageLoad(srcVal, 'hero-thumb (1600w WebP)');
@@ -136,7 +136,7 @@ export function initHeroSlideshow(heroes) {
           state.heroTimeouts.push(failsafeTimeoutId);
         }
 
-        // The responsive WebP is the final hero image. Originals load only in the lightbox.
+        // Keep the browser-selected responsive image; never force a second full-res download.
       };
 
       div.loadSlideImage = loadSlideImage;
@@ -165,8 +165,8 @@ export function initHeroSlideshow(heroes) {
       // Store standard properties on dataset to prevent immediate auto-download (Rule 8)
       img.dataset.src = h.thumb_url;
       const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9 fallback
-      img.dataset.srcset = `${gridThumb} 600w, ${h.thumb_url} 1600w`;
-      img.sizes = '100vw';
+      img.dataset.srcset = h.srcset || `${gridThumb} 600w, ${h.thumb_url} 1600w`;
+      img.sizes = h.sizes || '100vw';
       
       // Pure JS error fallback (Rule 6: CSP & security compliant, no inline onerror)
       const handleImgError = () => {

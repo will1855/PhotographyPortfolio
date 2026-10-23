@@ -50,6 +50,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
+const heroImages=require('./lib/heroImages')(supabase.storage,SUPABASE_IMAGES_BUCKET,SUPABASE_THUMBS_BUCKET);
+
 // Initialize Resend (optional, only sends if key is provided)
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -126,7 +128,7 @@ function escapeHtml(str) {
 
 const templateCache = new Map();
 
-async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archive') {
+async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archive', showHero = filename === 'index.html') {
   const filePath = path.join(__dirname, filename);
   let html;
   
@@ -162,7 +164,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
     <link rel="preload" href="/style.css?v=25" as="style">
-    <link rel="modulepreload" href="/js/main.js?v=24">
+    <link rel="modulepreload" href="/js/main.js?v=25">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -199,11 +201,13 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   html = html.replace(/<nav id="site-nav">[\s\S]*?<\/nav>/, `<nav id="site-nav" data-built="true">${navHtml}</nav>`);
 
   // 2. Dynamic pre-rendering: Hero slideshow, kicker, link (index.html only)
-  const sectionConfig = sections.find(s => s.slug === activeSectionSlug);
-  const heroes = sectionConfig?.heroes || [];
+  const sectionConfig = showHero
+    ? sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() !== 'archive') || sections[0]
+    : sections.find(s => s.slug === activeSectionSlug);
+  const heroes = showHero ? sectionConfig?.heroes || [] : [];
   const initialHeroIndex = heroes.length > 0 ? Math.floor(Math.random() * heroes.length) : 0;
 
-  if (siteConfig) {
+  if (siteConfig && heroes.length) {
     siteConfig.initial_hero_index = initialHeroIndex;
   }
 
@@ -214,7 +218,9 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       const focalPointStyle = h.focal_point && h.focal_point !== 'center' ? ` style="--mobile-focal-point: ${h.focal_point};"` : '';
       
       const gridThumb = h.grid_thumb_url || h.thumb_url; // Rule 9: fallback if grid thumb missing
-      const srcSetAttr = ` srcset="${gridThumb} 600w, ${h.thumb_url} 1600w" sizes="100vw"`;
+      const heroSrcset=h.srcset || `${gridThumb} 600w, ${h.thumb_url} 1600w`;
+      const heroSizes=h.sizes || '100vw';
+      const srcSetAttr = ` srcset="${heroSrcset}" sizes="${heroSizes}"`;
 
       if (isActive) {
         heroMediaHtml += `<div class="hero-slide active">
@@ -223,7 +229,7 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
       } else {
         // Rule 8: Lazy-loading inactive slides (data-srcset/data-src) to prevent instant download
         heroMediaHtml += `<div class="hero-slide">
-          <img data-src="${h.thumb_url}" data-srcset="${gridThumb} 600w, ${h.thumb_url} 1600w" sizes="100vw" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
+          <img data-src="${h.thumb_url}" data-srcset="${heroSrcset}" sizes="${heroSizes}" class="loading" alt="Hero image" data-full-url="${h.full_url}"${focalPointStyle}>
         </div>`;
       }
     });
@@ -237,10 +243,10 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
     html = html.replace('</head>', `${dataScript}\n</head>`);
 
     // Preload the active hero's thumbnail for instant display
-    if (heroes[initialHeroIndex]) {
+    if (filename === 'index.html' && heroes[initialHeroIndex]) {
       const activeHero = heroes[initialHeroIndex];
       const gridThumb = activeHero.grid_thumb_url || activeHero.thumb_url; // Rule 9 fallback
-      const preloadTag = `<link rel="preload" as="image" href="${activeHero.thumb_url}" imagesrcset="${gridThumb} 600w, ${activeHero.thumb_url} 1600w" imagesizes="100vw" fetchpriority="high">`;
+      const preloadTag = `<link rel="preload" as="image" href="${activeHero.thumb_url}" imagesrcset="${activeHero.srcset || `${gridThumb} 600w, ${activeHero.thumb_url} 1600w`}" imagesizes="${activeHero.sizes || '100vw'}" fetchpriority="high">`;
       html = html.replace('</head>', `${preloadTag}\n</head>`);
     }
   }
@@ -265,7 +271,7 @@ app.get('/', async (req, res) => {
     }
     // Home only needs its hero data; fetch the archive when a gallery is requested.
     if (req.query.section) config.initial_images = await getSectionImagesData(imgSlug);
-    const html = await getInjectedHtml('index.html', config, slug);
+    const html = await getInjectedHtml('index.html', config, slug, !req.query.section);
     // Vercel Edge caching - approved via Rule 10
     res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');
     res.send(html);
@@ -512,13 +518,14 @@ async function getSiteConfigData() {
         .in('id', heroIds);
 
       if (heroRows) {
-        heroes = heroRows.map(row => ({
+        heroes = await Promise.all(heroRows.map(async row => ({
+          ...await heroImages.sources(row),
           id:             row.id,
           full_url:       getPublicUrl(SUPABASE_IMAGES_BUCKET, row.storage_path_full),
           thumb_url:      getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb),
           grid_thumb_url: row.storage_path_thumb ? getPublicUrl(SUPABASE_THUMBS_BUCKET, row.storage_path_thumb.replace(/\.webp$/i, '-grid.webp')) : null,
           focal_point:    row.focal_point || 'center',
-        }));
+        })));
       }
     }
     return {
@@ -1515,6 +1522,12 @@ app.post('/api/admin/hero', requireAdmin, async (req, res) => {
 
     if (secErr || !section) throw new Error('Section not found');
 
+    // Create only the selected hero derivatives before exposing their URLs.
+    if(Array.isArray(hero_image_ids)&&hero_image_ids.length){
+      const {data:rows,error}=await supabase.from('portfolio_images').select('*').in('id',hero_image_ids);
+      if(error)throw error;
+      for(const row of rows||[])await heroImages.ensure(row);
+    }
     // 2. Update section fields (legacy hero_image_id set to first one for compat)
     await supabase
       .from('portfolio_sections')
