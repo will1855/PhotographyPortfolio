@@ -161,8 +161,8 @@ async function getInjectedHtml(filename, siteConfig, activeSectionSlug = 'archiv
   const performanceTags = `
     <link rel="preconnect" href="${supabaseOrigin}">
     <link rel="dns-prefetch" href="${supabaseOrigin}">
-    <link rel="preload" href="/style.css?v=24" as="style">
-    <link rel="modulepreload" href="/js/main.js?v=23">
+    <link rel="preload" href="/style.css?v=25" as="style">
+    <link rel="modulepreload" href="/js/main.js?v=24">
   `;
   const ogTags = `
     <meta property="og:title" content="${title}">
@@ -263,7 +263,8 @@ app.get('/', async (req, res) => {
         imgSlug = archiveSec.slug;
       }
     }
-    config.initial_images = await getSectionImagesData(imgSlug);
+    // Home only needs its hero data; fetch the archive when a gallery is requested.
+    if (req.query.section) config.initial_images = await getSectionImagesData(imgSlug);
     const html = await getInjectedHtml('index.html', config, slug);
     // Vercel Edge caching - approved via Rule 10
     res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=600');

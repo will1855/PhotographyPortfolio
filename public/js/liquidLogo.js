@@ -4,6 +4,22 @@ import { glyphs } from './willLetters.js?v=1';
 const NS = 'http://www.w3.org/2000/svg';
 const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
 let button, logo, letters = [], frame = null, start = 0;
+let hoverFrame=null,hoverLevel=0,hoverTarget=0,hoverX=0,hoverY=0;
+function wakeHover(){if(hoverFrame===null&&!motion.matches&&!button?.classList.contains('liquid-playing'))hoverFrame=requestAnimationFrame(tickHover)}
+function tickHover(){
+ hoverFrame=null;
+ if(motion.matches||document.hidden||button?.classList.contains('liquid-playing'))return;
+ hoverLevel+=(hoverTarget-hoverLevel)*.22;
+ if(Math.abs(hoverTarget-hoverLevel)<.002)hoverLevel=hoverTarget;
+ render();
+ if(hoverLevel!==hoverTarget)wakeHover();
+}
+function bulge(x,y){
+ if(!hoverLevel||button?.classList.contains('liquid-playing'))return [x,y];
+ const dx=x-hoverX,dy=y-hoverY,d=Math.hypot(dx,dy);
+ const push=12*Math.exp(-(d*d)/20000)*hoverLevel;
+ return [x+dx/Math.max(30,d)*push,y+dy/Math.max(30,d)*push];
+}
 const smooth = t => t * t * (3 - 2 * t);
 // Authored anticipation, launch, landing and recovery. The staggered letters
 // have different weight; the i dot has its own extra follow-through.
@@ -41,8 +57,8 @@ function render(age=0) {
         // A small elastic lag preserves individual letter weight without a
         // travelling wave. The dominant motion is a single vertical jump.
         const lag=pose(time-height*.025),localSy=sy+(lag[1]-sy)*height*.3;
-        return [cx+(x-cx)*sx+bend*[.78,1,.96,1.12][i]*height*height,
-          base+(y-base)*localSy+jump*(.92+i*.04)+(dot?(dotJump-jump)*.5:0)];
+        return bulge(cx+(x-cx)*sx+bend*[.78,1,.96,1.12][i]*height*height,
+          base+(y-base)*localSy+jump*(.92+i*.04)+(dot?(dotJump-jump)*.5:0));
       });
       path.setAttribute('d',outline(points));
     });
@@ -70,6 +86,13 @@ export function initLiquidLogo() {
     return {glyph,paths,cx:(Math.min(...pts.map(p=>p[0]))+Math.max(...pts.map(p=>p[0])))/2,base:Math.max(...pts.map(p=>p[1]))};
   });
   render();image.replaceWith(logo);
+  button.addEventListener('pointermove',event=>{
+    if(event.pointerType!=='mouse'||motion.matches||button.classList.contains('liquid-playing'))return;
+    const matrix=logo.getScreenCTM();if(!matrix)return;
+    const point=new DOMPoint(event.clientX,event.clientY).matrixTransform(matrix.inverse());
+    hoverX=point.x;hoverY=point.y;hoverTarget=1;wakeHover();
+  },{passive:true});
+  button.addEventListener('pointerleave',()=>{hoverTarget=0;wakeHover()});
   button.addEventListener('click',()=>{
     stopLiquidLogo();if(motion.matches)return;
     button.classList.add('liquid-playing');start=performance.now();frame=requestAnimationFrame(tick);
@@ -83,6 +106,8 @@ function tick(now) {
   render(age);frame=requestAnimationFrame(tick);
 }
 export function stopLiquidLogo() {
+  if(hoverFrame!==null)cancelAnimationFrame(hoverFrame);
+  hoverFrame=null;hoverLevel=0;hoverTarget=0;
   if(frame!==null)cancelAnimationFrame(frame);frame=null;
   button?.classList.remove('liquid-playing');if(letters.length)render();
 }

@@ -47,16 +47,8 @@ function triggerFadeIn(img) {
     }, 50);
   };
 
-  if (window.activeViewTransition) {
-    // Race the transition against a 2-second timeout so images
-    // never stay hidden if the tab is backgrounded mid-transition.
-    const timeout = new Promise(resolve => setTimeout(resolve, 2000));
-    Promise.race([window.activeViewTransition, timeout])
-      .then(applyClass)
-      .catch(applyClass);
-  } else {
-    applyClass();
-  }
+  // Let ready images join the page transition instead of waiting for a second fade.
+  applyClass();
 }
 
 /**

@@ -167,13 +167,8 @@ header h1 :is(a, button) {
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 1px 6px rgba(0, 0, 0, 0.45));
-  /* Transforms are animated only during the short jelly bounce. */
-  transition: opacity 160ms ease;
 }
 
-header h1 :is(a, button):hover .site-logo {
-  opacity: 0.85;
-}
 
 #site-title button {
   position: relative;

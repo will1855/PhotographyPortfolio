@@ -1,17 +1,23 @@
 'use strict';
 
+import { pageData, seedPageData } from './pageData.js?v=1';
 import { logAnalyticsEvent } from './analytics.js';
-import { renderGallery } from './gallery.js?v=2';
+import { renderGallery } from './gallery.js?v=3';
 import { renderWorkLayout } from './gallery.js?v=2';
 import { renderLightboxSlides } from './lightbox.js';
-import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js';
+import { initHeroSlideshow, cleanupHeroSlideshow } from './slideshow.js?v=2';
 import { dom, state } from './state.js';
 import { initAdaptiveContrast, scheduleContrastEval } from './contrast.js';
-import { initLiquidLogo, stopLiquidLogo } from './liquidLogo.js?v=4';
+import { initLiquidLogo, stopLiquidLogo } from './liquidLogo.js?v=5';
 import { initBlobNav, updateBlobNavActive, refreshBlobPositions } from './blobNav.js?v=10';
 
 // Local variables in main scope
 let siteConfigCache = null;
+// Two tiny HTML shells; no photograph blobs or persistent storage.
+const pageShells=new Map();
+const initialContent=document.getElementById('app-content');
+if(initialContent)pageShells.set(location.pathname.includes('/about')?'about':'home',initialContent.innerHTML);
+if(!pageShells.has('about'))pageShells.set('about','<div class="about-page"><div class="about-content" id="about-content"></div>'+(document.querySelector('footer')?.outerHTML||'')+'</div>');
 let _lastRoutedBase = window.location.pathname + window.location.search;
 let _activeNavIdx = 0;
 let _blobFirstInit = true;
@@ -44,6 +50,7 @@ initAdaptiveContrast();
  * Bootstraps the application, loading the site configuration and section images.
  */
 export async function initPage() {
+  const routeKey=location.pathname+location.search;
   try {
     if (!siteConfigCache) {
       if (window.INITIAL_DATA) {
@@ -142,35 +149,24 @@ export async function initPage() {
           }
         }
 
+        const imageUrl='/api/images?section='+encodeURIComponent(imgSection);
+        // Start independent requests together, including shared hover requests.
+        const layoutPromise=isEditorial?pageData('/api/layout?section='+encodeURIComponent(state.section)).catch(()=>({layout:null})):Promise.resolve(null);
         if (siteConfigCache?.initial_images && state.section === currentSection) {
           data = siteConfigCache.initial_images;
+          seedPageData(imageUrl,data);
           delete siteConfigCache.initial_images; // Consume only once
-          if (Array.isArray(data) && data.length > 0) {
-            state.sectionCache.set(state.section, data);
-          }
-        } else if (state.sectionCache.has(state.section) && Array.isArray(state.sectionCache.get(state.section)) && state.sectionCache.get(state.section).length > 0) {
-          data = state.sectionCache.get(state.section);
         } else {
-          const imgRes = await fetch(`/api/images?section=${encodeURIComponent(imgSection)}`);
-          data = await imgRes.json();
-          if (Array.isArray(data) && data.length > 0) {
-            state.sectionCache.set(state.section, data);
-          }
+          data = await pageData(imageUrl);
         }
+        const layoutResult=await layoutPromise;
+        if(routeKey!==location.pathname+location.search)return;
 
         if (Array.isArray(data) && data.length > 0) {
           state.images = data;
 
           if (isEditorial) {
-            let layoutData = null;
-            try {
-              const layoutRes = await fetch(`/api/layout?section=${encodeURIComponent(state.section)}`);
-              if (layoutRes.ok) {
-                const layoutJson = await layoutRes.json();
-                layoutData = layoutJson.layout;
-              }
-            } catch { /* gracefully ignore — will use default layout */ }
-            renderWorkLayout(data, layoutData);
+            renderWorkLayout(data, layoutResult?.layout || null);
           } else {
             renderGallery();
           }
@@ -180,6 +176,7 @@ export async function initPage() {
           dom.gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">No images yet.</p>';
         }
       } catch (err) {
+        if(routeKey!==location.pathname+location.search)return;
         console.error('[images] Failed to load images', err);
         dom.gallery.innerHTML = '<p style="padding:40px 22px;color:rgba(240,240,237,0.4);font-size:0.9rem;">Could not load images.</p>';
       }
@@ -208,9 +205,6 @@ function setupNavPrefetch() {
       const url = new URL(a.href, window.location.origin);
       const s = url.searchParams.get('section');
       if (s) {
-        const cached = state.sectionCache.get(s);
-        if (cached && Array.isArray(cached) && cached.length > 0) return;
-
         let imgSection = s;
         if (siteConfigCache?.sections) {
           const sec = siteConfigCache.sections.find(sc => sc.slug === s);
@@ -221,32 +215,9 @@ function setupNavPrefetch() {
           }
         }
 
-        fetch(`/api/images?section=${encodeURIComponent(imgSection)}`)
-          .then(res => res.json())
-          .then(data => {
-            if (Array.isArray(data) && data.length > 0) {
-              state.sectionCache.set(s, data);
-              data.slice(0, 2).forEach(img => {
-                const link = document.createElement('link');
-                link.rel = 'preload';
-                link.as = 'image';
-                link.href = img.public_url_grid_thumb || img.public_url_thumb;
-
-                if (img.public_url_grid_thumb && img.public_url_thumb) {
-                  link.setAttribute('imagesrcset', `${img.public_url_grid_thumb} 600w, ${img.public_url_thumb} 1600w`);
-                  if (img.is_wide) {
-                    link.setAttribute('imagesizes', '(min-width: 1000px) 50vw, (min-width: 700px) 67vw, 50vw');
-                  } else {
-                    link.setAttribute('imagesizes', '(min-width: 1000px) 25vw, (min-width: 700px) 33vw, 50vw');
-                  }
-                }
-
-                link.setAttribute('fetchpriority', 'low');
-                document.head.appendChild(link);
-              });
-            }
-          })
-          .catch(() => { });
+        // Intent warms JSON only; hovering never downloads photographs.
+        pageData('/api/images?section='+encodeURIComponent(imgSection)).catch(()=>{});
+        if(imgSection!==s)pageData('/api/layout?section='+encodeURIComponent(s)).catch(()=>{});
       }
     } catch (e) { }
   };
@@ -561,8 +532,14 @@ async function handleRoute(url) {
   }
 
   try {
-    const res = await fetch(url);
-    const html = await res.text();
+    const shellKey=urlObj.pathname.includes('/about')?'about':'home';
+    let html;
+    if(pageShells.has(shellKey))html='<div id="app-content">'+pageShells.get(shellKey)+'</div>';
+    else {
+      const res=await fetch(url);if(!res.ok)throw new Error('Page unavailable');
+      html=await res.text();
+    }
+    if(urlObj.pathname+urlObj.search!==location.pathname+location.search)return;
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
@@ -572,6 +549,7 @@ async function handleRoute(url) {
       return;
     }
 
+    pageShells.set(shellKey,newContent.innerHTML);
     let resolvedSection = newSection;
     if (!resolvedSection && siteConfigCache?.sections) {
       const archiveSec = siteConfigCache.sections.find(s => (s.nav_label || s.label || '').toLowerCase().trim() === 'archive');
@@ -593,7 +571,7 @@ async function handleRoute(url) {
       document.documentElement.classList.remove('smooth-scroll-active');
       window.scrollTo(0, 0);
 
-      document.title = doc.title;
+      if(doc.title)document.title = doc.title;
       await initPage();
     };
 

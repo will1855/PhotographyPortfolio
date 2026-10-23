@@ -136,48 +136,7 @@ export function initHeroSlideshow(heroes) {
           state.heroTimeouts.push(failsafeTimeoutId);
         }
 
-        // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
-        const isMobile = window.innerWidth <= 768;
-        console.log('[Image Diagnostic] loadFullRes entry reuse: isMobile=' + isMobile + ' innerWidth=' + window.innerWidth);
-        if (isMobile) {
-          return;
-        }
-
-        if (img.dataset.fullLoaded === 'true') {
-          return;
-        }
-
-        // Only upgrade the currently active desktop hero image
-        // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
-        const delay = 800;
-        const upgradeTimeoutId = setTimeout(() => {
-          const currentMobile = window.innerWidth <= 768;
-          console.log('[Image Diagnostic] Debug reuse: i=' + i + ' heroIndex=' + state.heroIndex + ' heroIsVisible=' + state.heroIsVisible + ' isMobile=' + currentMobile);
-          if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
-            return;
-          }
-          if (img.dataset.fullLoaded === 'true') {
-            return;
-          }
-
-          logImageLoad(h.full_url, 'hero-full-res-upgrade (Original)');
-
-          const full = new Image();
-          if (i === state.heroIndex) full.fetchPriority = 'high';
-          full.onload = () => {
-            img.removeAttribute('srcset');
-            img.removeAttribute('sizes');
-            img.src = h.full_url;
-            img.dataset.fullLoaded = 'true';
-            removeBlur();
-          };
-          full.onerror = () => {
-            console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
-            removeBlur();
-          };
-          full.src = h.full_url;
-        }, delay);
-        state.heroTimeouts.push(upgradeTimeoutId);
+        // The responsive WebP is the final hero image. Originals load only in the lightbox.
       };
 
       div.loadSlideImage = loadSlideImage;
@@ -257,48 +216,7 @@ export function initHeroSlideshow(heroes) {
           state.heroTimeouts.push(failsafeTimeoutId);
         }
 
-        // Mobile performance: Skip full-resolution download on mobile devices (Rule 4 & 7)
-        const isMobile = window.innerWidth <= 768;
-        console.log('[Image Diagnostic] loadFullRes entry fallback: isMobile=' + isMobile + ' innerWidth=' + window.innerWidth);
-        if (isMobile) {
-          return;
-        }
-
-        if (img.dataset.fullLoaded === 'true') {
-          return;
-        }
-
-        // Only upgrade the currently active desktop hero image
-        // Introduce a slight delay (800ms) before downloading the heavy original full-res image.
-        const delay = 800;
-        const upgradeTimeoutId = setTimeout(() => {
-          const currentMobile = window.innerWidth <= 768;
-          console.log('[Image Diagnostic] Debug fallback: i=' + i + ' heroIndex=' + state.heroIndex + ' heroIsVisible=' + state.heroIsVisible + ' isMobile=' + currentMobile);
-          if (currentMobile || i !== state.heroIndex || !state.heroIsVisible) {
-            return;
-          }
-          if (img.dataset.fullLoaded === 'true') {
-            return;
-          }
-
-          logImageLoad(h.full_url, 'hero-full-res-upgrade (Original)');
-
-          const full = new Image();
-          if (i === state.heroIndex) full.fetchPriority = 'high';
-          full.onload = () => {
-            img.removeAttribute('srcset');
-            img.removeAttribute('sizes');
-            img.src = h.full_url;
-            img.dataset.fullLoaded = 'true';
-            removeBlur();
-          };
-          full.onerror = () => {
-            console.warn('[hero] Full-resolution image failed to load, keeping standard thumbnail sharp');
-            removeBlur();
-          };
-          full.src = h.full_url;
-        }, delay);
-        state.heroTimeouts.push(upgradeTimeoutId);
+        // The responsive WebP is the final hero image. Originals load only in the lightbox.
       };
 
       div.loadSlideImage = loadSlideImage;
